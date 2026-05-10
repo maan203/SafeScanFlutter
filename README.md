@@ -8,6 +8,12 @@
 </p>
 
 <p align="center">
+  <a href="https://drive.google.com/uc?export=download&id=1U-b8IIQby2FNV5m6DOFxZIEGTjXWnTa3">
+    <img src="https://img.shields.io/badge/Download%20APK-Latest%20Release-22C55E?style=for-the-badge&logo=android&logoColor=white"/>
+  </a>
+</p>
+
+<p align="center">
   A QR-based asset safety platform built with Flutter and Firebase. Attach a QR code to any asset — vehicle, bike, or equipment — and enable instant incident reporting, emergency alerts, and real-time notifications.
 </p>
 
