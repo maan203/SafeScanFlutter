@@ -1,17 +1,28 @@
-# safescan
+# SafeScan
 
-A new Flutter project.
+A Flutter app for QR-based asset safety management. Attach a QR code to your vehicle or asset — anyone who scans it can report incidents, and you get notified instantly.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- QR code generation for assets (vehicles, bikes, etc.)
+- Incident reporting with photo evidence and GPS location
+- Emergency contacts with one-tap calling
+- SOS alert system
+- Real-time alerts and notifications
+- Firebase Authentication (email/password + Google Sign-In)
 
-A few resources to get you started if this is your first Flutter project:
+## Tech Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter + Dart
+- Firebase Auth, Firestore, FCM
+- Provider (state management)
+- GoRouter (navigation)
+- Geolocator + Geocoding (GPS)
+- MobileScanner (QR scanning)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+1. Clone the repo
+2. Run `flutter pub get`
+3. Add your own `android/app/google-services.json` from Firebase Console
+4. Run `flutter run`
