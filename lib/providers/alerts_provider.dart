@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/alert_service.dart';
+import '../services/notification_service.dart';
 import '../models/alert_model.dart';
 
 class AlertsProvider extends ChangeNotifier {
@@ -7,6 +8,8 @@ class AlertsProvider extends ChangeNotifier {
 
   List<AlertModel> _alerts = [];
   bool _loading = false;
+  bool _firstLoad = true;
+  final Set<String> _seenIds = {};
 
   List<AlertModel> get alerts => _alerts;
   bool get loading => _loading;
@@ -17,6 +20,17 @@ class AlertsProvider extends ChangeNotifier {
     notifyListeners();
     _service.watchAlerts(uid).listen(
       (list) {
+        if (_firstLoad) {
+          _seenIds.addAll(list.map((a) => a.id));
+          _firstLoad = false;
+        } else {
+          for (final alert in list) {
+            if (!_seenIds.contains(alert.id)) {
+              _seenIds.add(alert.id);
+              NotificationService.instance.show(title: alert.title, body: alert.body);
+            }
+          }
+        }
         _alerts = list;
         _loading = false;
         notifyListeners();

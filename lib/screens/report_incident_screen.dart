@@ -7,9 +7,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import '../providers/auth_provider.dart';
 import '../services/location_service.dart';
+import '../services/asset_service.dart';
+import '../models/asset_model.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
-  const ReportIncidentScreen({super.key});
+  final String? assetId;
+  const ReportIncidentScreen({super.key, this.assetId});
 
   @override
   State<ReportIncidentScreen> createState() => _ReportIncidentScreenState();
@@ -22,9 +25,12 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   bool _loadingLocation = false;
   String _address = 'Detecting location...';
   List<File> _photos = [];
+  AssetModel? _asset;
+  bool _loadingAsset = false;
 
   final ImagePicker _picker = ImagePicker();
   final LocationService _locationService = LocationService();
+  final AssetService _assetService = AssetService();
 
   final List<_IncidentType> _types = const [
     _IncidentType(label: 'Accident', icon: Icons.car_crash_outlined, color: Color(0xFFEF4444)),
@@ -37,6 +43,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   void initState() {
     super.initState();
     _fetchLocation();
+    if (widget.assetId != null) _fetchAsset();
+  }
+
+  Future<void> _fetchAsset() async {
+    setState(() => _loadingAsset = true);
+    final asset = await _assetService.getPublicAsset(widget.assetId!);
+    if (mounted) setState(() { _asset = asset; _loadingAsset = false; });
   }
 
   Future<void> _fetchLocation() async {
@@ -110,29 +123,59 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       );
       return;
     }
+    final auth = context.read<AuthProvider>();
+    final uid = auth.user?.uid;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please sign in to submit a report.', style: GoogleFonts.inter()), backgroundColor: const Color(0xFFEF4444)),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
+    bool ownerNotified = false;
 
     try {
-      final auth = context.read<AuthProvider>();
       await FirebaseFirestore.instance.collection('incidents').add({
         'type': _selectedType,
         'description': _descCtrl.text.trim(),
         'location': _address,
-        'reportedBy': auth.user?.uid,
+        'reportedBy': uid,
         'reportedAt': Timestamp.now(),
         'photoCount': _photos.length,
+        'assetId': _asset?.id,
+        'ownerId': _asset?.userId,
       });
-    } catch (_) {
-      // Firestore unavailable — continue to show success anyway
+
+      if (_asset != null) {
+        await FirebaseFirestore.instance.collection('users').doc(_asset!.userId).collection('alerts').add({
+          'title': 'Incident reported for ${_asset!.name}',
+          'body': '$_selectedType reported: ${_descCtrl.text.trim().isEmpty ? "No description" : _descCtrl.text.trim()} ($_address)',
+          'type': 'incident',
+          'assetId': _asset!.id,
+          'location': _address,
+          'isRead': false,
+          'createdAt': Timestamp.now(),
+        });
+        ownerNotified = true;
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not submit report: $e', style: GoogleFonts.inter()), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+      return;
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
-      _showSuccessDialog();
+      _showSuccessDialog(ownerNotified);
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(bool ownerNotified) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -149,8 +192,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             const SizedBox(height: 16),
             Text('Report Submitted', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
             const SizedBox(height: 8),
-            Text('Your report has been sent. The vehicle owner has been notified.',
-                textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B), height: 1.5)),
+            Text(
+              ownerNotified
+                  ? 'Your report has been sent. The owner of ${_asset?.name ?? "this asset"} has been notified.'
+                  : 'Your report has been saved to your incident history.',
+              textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B), height: 1.5)),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () { Navigator.pop(context); context.pop(); },
@@ -182,6 +228,34 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.assetId != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_car_outlined, color: Color(0xFF2563EB), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _loadingAsset
+                            ? 'Loading asset...'
+                            : _asset != null
+                                ? 'Reporting about: ${_asset!.name} — the owner will be notified'
+                                : 'This asset could not be found. Your report will still be saved without notifying an owner.',
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF1E40AF)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Text('Incident type', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: const Color(0xFF1E293B))),
             const SizedBox(height: 12),
             GridView.count(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum AlertType { scan, sos, location, lostFound, parking }
+enum AlertType { scan, sos, location, lostFound, parking, incident, emergency }
 
 class AlertModel {
   final String id;
@@ -71,6 +71,8 @@ class AlertModel {
       case AlertType.location: return Icons.location_on_rounded;
       case AlertType.lostFound: return Icons.search_rounded;
       case AlertType.parking: return Icons.local_parking_rounded;
+      case AlertType.incident: return Icons.report_gmailerrorred_rounded;
+      case AlertType.emergency: return Icons.emergency_rounded;
     }
   }
 
@@ -81,6 +83,8 @@ class AlertModel {
       case AlertType.location: return const Color(0xFF3B82F6);
       case AlertType.lostFound: return const Color(0xFF8B5CF6);
       case AlertType.parking: return const Color(0xFFF59E0B);
+      case AlertType.incident: return const Color(0xFFEF4444);
+      case AlertType.emergency: return const Color(0xFFB91C1C);
     }
   }
 }

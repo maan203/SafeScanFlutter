@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../providers/auth_provider.dart';
-import '../providers/contacts_provider.dart';
 import '../services/sos_service.dart';
 
 class SosScreen extends StatefulWidget {
@@ -24,6 +23,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   bool _sosSent = false;
   bool _sending = false;
   int _contactsAlerted = 0;
+  bool _smsComposerOpened = false;
   Timer? _holdTimer;
 
   final SosService _sosService = SosService();
@@ -59,16 +59,16 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     });
 
     final auth = context.read<AuthProvider>();
-    final contactsP = context.read<ContactsProvider>();
     final uid = auth.user?.uid ?? '';
 
-    await _sosService.triggerSos(uid);
+    final result = await _sosService.triggerSos(uid);
 
     if (mounted) {
       setState(() {
         _sosSent = true;
         _sending = false;
-        _contactsAlerted = contactsP.contacts.length;
+        _contactsAlerted = result.contactCount;
+        _smsComposerOpened = result.smsComposerOpened;
       });
     }
   }
@@ -104,7 +104,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
             Center(
               child: _sosSent
-                  ? _SosSentView(contactsAlerted: _contactsAlerted)
+                  ? _SosSentView(contactsAlerted: _contactsAlerted, smsComposerOpened: _smsComposerOpened)
                   : _sending
                       ? Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -129,7 +129,11 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               right: 32,
               child: Text(
                 _sosSent
-                    ? 'SOS sent! Your emergency contacts have been alerted with your live location.'
+                    ? (_smsComposerOpened
+                        ? 'Your messaging app opened with the alert pre-filled — tap Send there to actually notify your contacts.'
+                        : _contactsAlerted == 0
+                            ? 'No emergency contacts found — add one first so SOS has someone to alert.'
+                            : 'Could not open your messaging app automatically. Contact them directly.')
                     : 'Your live location and emergency message will be sent to all emergency contacts.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
@@ -210,7 +214,8 @@ class _HoldView extends StatelessWidget {
 
 class _SosSentView extends StatelessWidget {
   final int contactsAlerted;
-  const _SosSentView({required this.contactsAlerted});
+  final bool smsComposerOpened;
+  const _SosSentView({required this.contactsAlerted, required this.smsComposerOpened});
 
   @override
   Widget build(BuildContext context) {
@@ -221,13 +226,27 @@ class _SosSentView extends StatelessWidget {
           width: 120,
           height: 120,
           decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-          child: const Icon(Icons.check_rounded, size: 64, color: Color(0xFFEF4444)),
+          child: Icon(
+            smsComposerOpened ? Icons.sms_rounded : Icons.error_outline_rounded,
+            size: 64,
+            color: const Color(0xFFEF4444),
+          ),
         ),
         const SizedBox(height: 24),
-        Text('SOS Sent!', style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+        Text(
+          smsComposerOpened ? 'Almost there!' : 'Action needed',
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 8),
-        Text('$contactsAlerted contact${contactsAlerted == 1 ? '' : 's'} alerted',
-            style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.8), fontSize: 16)),
+        Text(
+          smsComposerOpened
+              ? 'Tap Send in Messages to alert $contactsAlerted contact${contactsAlerted == 1 ? '' : 's'}'
+              : contactsAlerted == 0
+                  ? 'No emergency contacts to alert'
+                  : 'Could not open messaging app',
+          style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.8), fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: 32),
         TextButton(
           onPressed: () => context.pop(),

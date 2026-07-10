@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SafeScan — Found Item</title>
+<style>
+  :root {
+    --green: #22C55E;
+    --dark: #0F172A;
+    --navy: #1E293B;
+    --grey: #64748B;
+    --bg: #F1F5F9;
+    --border: #E2E8F0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--dark);
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  #app { width: 100%; max-width: 420px; }
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .icon-circle {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    background: rgba(34,197,94,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 34px;
+    margin: 0 auto 16px;
+  }
+  h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  .subtitle { font-size: 14px; color: var(--grey); margin: 0; }
+  .desc { font-size: 13px; color: var(--grey); margin-top: 12px; }
+  .reward {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: left;
+    font-size: 13px;
+    color: #92400E;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .contact-tile {
+    display: flex; align-items: center; gap: 14px;
+    background: #fff; border-radius: 16px; padding: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    text-decoration: none; color: inherit;
+    margin-bottom: 16px;
+  }
+  .contact-tile .badge {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(34,197,94,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .contact-tile .label { font-size: 12px; color: var(--grey); }
+  .contact-tile .value { font-size: 15px; font-weight: 700; }
+  .cta-card {
+    background: var(--navy);
+    border-radius: 20px;
+    padding: 22px;
+    text-align: center;
+    color: #fff;
+  }
+  .cta-card p { font-size: 13px; color: rgba(255,255,255,0.75); margin: 8px 0 16px; line-height: 1.5; }
+  .btn {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    width: 100%;
+  }
+  .footnote { text-align: center; font-size: 11px; color: #94A3B8; margin-top: 20px; }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--green);
+    animation: spin 0.8s linear infinite; margin: 60px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div id="app"><div class="spinner"></div></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getFirestore, doc, getDoc, updateDoc, increment,
+      collection, addDoc, Timestamp,
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    // If this page shows a permission or API-key error, register a dedicated
+    // Web app in Firebase Console -> Project Settings -> Your apps -> Add app
+    // (free) and paste that config here instead.
+    const firebaseConfig = {
+      apiKey: "AIzaSyDg0nG1255cuzKl13S8C7gdhtHc5sbtYhs",
+      authDomain: "safescan-cfe7e.firebaseapp.com",
+      projectId: "safescan-cfe7e",
+      storageBucket: "safescan-cfe7e.firebasestorage.app",
+    };
+
+    const APK_URL = "https://drive.google.com/uc?export=download&id=1U-b8IIQby2FNV5m6DOFxZIEGTjXWnTa3";
+
+    const ICONS = {
+      Vehicle: "🚗", Bicycle: "🚲", Laptop: "💻",
+      Bag: "🎒", Pet: "🐾", Person: "🧒",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAssetId() {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const idx = parts.indexOf("found");
+      return idx >= 0 && parts[idx + 1] ? decodeURIComponent(parts[idx + 1]) : null;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str ?? "";
+      return div.innerHTML;
+    }
+
+    function renderMessage(icon, title, subtitle) {
+      return `
+        <div class="card">
+          <div class="icon-circle">${icon}</div>
+          <h1>${escapeHtml(title)}</h1>
+          <p class="subtitle">${escapeHtml(subtitle)}</p>
+        </div>`;
+    }
+
+    function renderAppCta(intro) {
+      return `
+        <div class="cta-card">
+          <div style="font-size:28px;">🛡️</div>
+          <h1 style="margin-top:10px;">SafeScan</h1>
+          <p>${escapeHtml(intro)}</p>
+          <a class="btn" href="${APK_URL}">Get the SafeScan App</a>
+        </div>`;
+    }
+
+    function renderAsset(asset, id) {
+      const icon = ICONS[asset.type] || "📦";
+      let html = `
+        <div class="card">
+          <div class="icon-circle">${icon}</div>
+          <h1>${escapeHtml(asset.name)}</h1>
+          <p class="subtitle">${escapeHtml(asset.type)}</p>
+          ${asset.description ? `<p class="desc">${escapeHtml(asset.description)}</p>` : ""}
+        </div>`;
+
+      if (asset.rewardMessage) {
+        html += `
+          <div class="reward">
+            <span>🎁</span>
+            <span>${escapeHtml(asset.rewardMessage)}</span>
+          </div>`;
+      }
+
+      if (asset.showPhone && asset.phone) {
+        html += `
+          <a class="contact-tile" href="tel:${escapeHtml(asset.phone)}">
+            <div class="badge">📞</div>
+            <div>
+              <div class="label">Call owner</div>
+              <div class="value">${escapeHtml(asset.phone)}</div>
+            </div>
+          </a>`;
+      }
+
+      html += renderAppCta(
+        "Install SafeScan to chat privately with the owner, report an issue, or alert their emergency contacts."
+      );
+      html += `<p class="footnote">Asset ID: ${escapeHtml(id)}</p>`;
+      return html;
+    }
+
+    async function recordScanBestEffort(id, ownerId) {
+      try {
+        await updateDoc(doc(db, "assets", id), { scanCount: increment(1) });
+        await addDoc(collection(db, "scan_events"), {
+          assetId: id, ownerId, location: null, scannedAt: Timestamp.now(),
+        });
+        await addDoc(collection(db, "users", ownerId, "alerts"), {
+          title: "Your QR was scanned",
+          body: "Your asset QR code was just scanned from the web.",
+          type: "scan", assetId: id, location: null, isRead: false,
+          createdAt: Timestamp.now(),
+        });
+      } catch (e) {
+        console.warn("Could not record web scan:", e);
+      }
+    }
+
+    async function main() {
+      const root = document.getElementById("app");
+      const id = getAssetId();
+
+      if (!id) {
+        root.innerHTML = renderMessage("⚠️", "Invalid link", "This SafeScan link is missing an item ID.");
+        return;
+      }
+
+      try {
+        const ref = doc(db, "assets", id);
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) {
+          root.innerHTML = renderMessage("📦", "Not registered", "This QR code is not registered with SafeScan.") + renderAppCta("Have a SafeScan account? Open this link inside the app instead.");
+          return;
+        }
+
+        const asset = snap.data();
+
+        if (asset.isActive === false) {
+          root.innerHTML = renderMessage("🙈", "Currently inactive", "The owner has temporarily hidden this asset's details.");
+          return;
+        }
+
+        root.innerHTML = renderAsset(asset, id);
+        recordScanBestEffort(id, asset.userId);
+      } catch (e) {
+        root.innerHTML = renderMessage("⚠️", "Could not load this item", String(e && e.message ? e.message : e));
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

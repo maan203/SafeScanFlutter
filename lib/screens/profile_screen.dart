@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
 import '../services/auth_service.dart';
+import '../services/settings_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,8 +15,19 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _notificationsEnabled = true;
-  bool _locationEnabled = true;
+  bool _notificationsEnabled = SettingsService.instance.notificationsEnabled;
+  bool _locationEnabled = SettingsService.instance.locationSharingEnabled;
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature — coming soon, not written yet.', style: GoogleFonts.inter()),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
   Future<void> _logout() async {
     final auth = context.read<AuthProvider>();
@@ -64,10 +76,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () async {
                   if (nameCtrl.text.trim().isNotEmpty) {
                     final uid = auth.user?.uid ?? '';
-                    await AuthService().updateProfile(uid, name: nameCtrl.text.trim());
-                    if (mounted) {
-                      Navigator.pop(context);
-                      auth.refreshUser();
+                    try {
+                      await AuthService().updateProfile(uid, name: nameCtrl.text.trim());
+                      if (mounted) {
+                        Navigator.pop(context);
+                        auth.refreshUser();
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not update profile: $e', style: GoogleFonts.inter()),
+                            backgroundColor: const Color(0xFFEF4444),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
                     }
                   }
                 },
@@ -171,8 +196,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _SettingsSection(
               title: 'Preferences',
               children: [
-                _ToggleTile(icon: Icons.notifications_outlined, label: 'Push Notifications', value: _notificationsEnabled, onChanged: (v) => setState(() => _notificationsEnabled = v)),
-                _ToggleTile(icon: Icons.location_on_outlined, label: 'Location Sharing', value: _locationEnabled, onChanged: (v) => setState(() => _locationEnabled = v)),
+                _ToggleTile(
+                  icon: Icons.notifications_outlined,
+                  label: 'Push Notifications',
+                  value: _notificationsEnabled,
+                  onChanged: (v) {
+                    setState(() => _notificationsEnabled = v);
+                    SettingsService.instance.setNotificationsEnabled(v);
+                  },
+                ),
+                _ToggleTile(
+                  icon: Icons.location_on_outlined,
+                  label: 'Location Sharing',
+                  value: _locationEnabled,
+                  onChanged: (v) {
+                    setState(() => _locationEnabled = v);
+                    SettingsService.instance.setLocationSharingEnabled(v);
+                  },
+                ),
               ],
             ),
 
@@ -192,9 +233,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _SettingsSection(
               title: 'Support',
               children: [
-                _NavTile(icon: Icons.help_outline_rounded, label: 'Help & FAQ', onTap: () {}),
-                _NavTile(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () {}),
-                _NavTile(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () {}),
+                _NavTile(icon: Icons.help_outline_rounded, label: 'Help & FAQ', onTap: () => _showComingSoon('Help & FAQ')),
+                _NavTile(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => _showComingSoon('Privacy Policy')),
+                _NavTile(icon: Icons.description_outlined, label: 'Terms of Service', onTap: () => _showComingSoon('Terms of Service')),
               ],
             ),
 

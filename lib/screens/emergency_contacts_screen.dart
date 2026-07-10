@@ -105,11 +105,21 @@ class EmergencyContactsScreen extends StatelessWidget {
                             ),
                           ) ?? false;
                         },
-                        onDismissed: (_) => contactsP.deleteContact(uid, c.id),
+                        onDismissed: (_) async {
+                          final ok = await contactsP.deleteContact(uid, c.id);
+                          if (!ok && context.mounted) {
+                            _showError(context, 'Could not remove contact: ${contactsP.error ?? "Unknown error"}');
+                          }
+                        },
                         child: _ContactCard(
                           contact: c,
                           onCall: () => _callContact(context, c.phone),
-                          onMakePrimary: () => contactsP.setPrimary(uid, c.id),
+                          onMakePrimary: () async {
+                            final ok = await contactsP.setPrimary(uid, c.id);
+                            if (!ok && context.mounted) {
+                              _showError(context, 'Could not update primary contact: ${contactsP.error ?? "Unknown error"}');
+                            }
+                          },
                         ),
                       ),
                     );
@@ -146,6 +156,17 @@ class EmergencyContactsScreen extends StatelessWidget {
                 const SizedBox(height: 24),
               ],
             ),
+    );
+  }
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter()),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
@@ -209,8 +230,13 @@ class EmergencyContactsScreen extends StatelessWidget {
                       relation: relationCtrl.text.trim().isEmpty ? 'Contact' : relationCtrl.text.trim(),
                       isPrimary: contactsP.contacts.isEmpty,
                     );
-                    Navigator.pop(context);
-                    await contactsP.addContact(uid, contact);
+                    final ok = await contactsP.addContact(uid, contact);
+                    if (!context.mounted) return;
+                    if (ok) {
+                      Navigator.pop(context);
+                    } else {
+                      _showError(context, 'Could not add contact: ${contactsP.error ?? "Unknown error"}');
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(

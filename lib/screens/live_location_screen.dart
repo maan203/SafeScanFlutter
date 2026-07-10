@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import '../providers/contacts_provider.dart';
 import '../services/location_service.dart';
+import '../services/sms_util.dart';
 
 class LiveLocationScreen extends StatefulWidget {
   const LiveLocationScreen({super.key});
@@ -73,15 +74,35 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
         return;
       }
 
-      final selectedContacts = contactsP.contacts
+      final selected = contactsP.contacts
           .asMap()
           .entries
           .where((e) => _selectedContactIndices.contains(e.key))
-          .map((e) => e.value.id)
+          .map((e) => e.value)
           .toList();
+      final selectedIds = selected.map((c) => c.id).toList();
+      final selectedPhones = selected.map((c) => c.phone).where((p) => p.isNotEmpty).toList();
 
-      await _locationService.startSharingLocation(uid, selectedContacts);
+      await _locationService.startSharingLocation(uid, selectedIds);
       setState(() => _isSharing = true);
+
+      if (selectedPhones.isNotEmpty) {
+        final mapsLink = 'https://maps.google.com/?q=${_currentPosition!.latitude},${_currentPosition!.longitude}';
+        final opened = await openSmsComposer(
+          selectedPhones,
+          'I\'m sharing my location with you: $mapsLink ($_address) — sent via SafeScan.',
+        );
+        if (mounted && !opened) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open your messaging app to send the location link.', style: GoogleFonts.inter()),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
 
       _positionSub = _locationService.getPositionStream().listen((pos) async {
         if (!mounted) return;
@@ -122,7 +143,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Text('Share your real-time location with emergency contacts',
+              child: Text('Text your current location to emergency contacts. Tap Share again anytime to send an updated link.',
                   style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B))),
             ),
 
@@ -247,7 +268,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
                   ElevatedButton.icon(
                     onPressed: _toggleSharing,
                     icon: Icon(_isSharing ? Icons.stop_rounded : Icons.share_location_outlined, size: 20),
-                    label: Text(_isSharing ? 'Stop Sharing' : 'Share Live Location'),
+                    label: Text(_isSharing ? 'Stop Sharing' : 'Text My Location'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isSharing ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
                       minimumSize: const Size(double.infinity, 56),
@@ -270,7 +291,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Location is being shared live with ${_selectedContactIndices.length} contact${_selectedContactIndices.length == 1 ? '' : 's'}.',
+                              'A location link was texted to ${_selectedContactIndices.length} contact${_selectedContactIndices.length == 1 ? '' : 's'}. It won\'t update automatically — tap Share again to send a fresh link.',
                               style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500),
                             ),
                           ),

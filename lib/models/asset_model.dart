@@ -14,6 +14,8 @@ class AssetModel {
   final int scanCount;
   final DateTime createdAt;
   final String userId;
+  final String userName;
+  final List<EmergencyContactRef> emergencyContacts;
 
   const AssetModel({
     required this.id,
@@ -28,6 +30,8 @@ class AssetModel {
     this.scanCount = 0,
     required this.createdAt,
     required this.userId,
+    this.userName = 'Owner',
+    this.emergencyContacts = const [],
   });
 
   factory AssetModel.fromFirestore(DocumentSnapshot doc) {
@@ -45,6 +49,10 @@ class AssetModel {
       scanCount: d['scanCount'] ?? 0,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       userId: d['userId'] ?? '',
+      userName: d['userName'] ?? 'Owner',
+      emergencyContacts: (d['emergencyContacts'] as List<dynamic>? ?? [])
+          .map((e) => EmergencyContactRef.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList(),
     );
   }
 
@@ -60,6 +68,8 @@ class AssetModel {
         'scanCount': scanCount,
         'createdAt': Timestamp.fromDate(createdAt),
         'userId': userId,
+        'userName': userName,
+        'emergencyContacts': emergencyContacts.map((e) => e.toMap()).toList(),
       };
 
   AssetModel copyWith({bool? isActive, int? scanCount}) {
@@ -76,6 +86,8 @@ class AssetModel {
       scanCount: scanCount ?? this.scanCount,
       createdAt: createdAt,
       userId: userId,
+      userName: userName,
+      emergencyContacts: emergencyContacts,
     );
   }
 
@@ -86,6 +98,7 @@ class AssetModel {
       case 'Laptop': return Icons.laptop_outlined;
       case 'Bag': return Icons.backpack_outlined;
       case 'Pet': return Icons.pets_outlined;
+      case 'Person': return Icons.child_care_outlined;
       default: return Icons.inventory_2_outlined;
     }
   }
@@ -97,7 +110,20 @@ class AssetModel {
       case 'Laptop': return const Color(0xFF8B5CF6);
       case 'Bag': return const Color(0xFFF59E0B);
       case 'Pet': return const Color(0xFFEF4444);
+      case 'Person': return const Color(0xFFEC4899);
       default: return const Color(0xFF64748B);
     }
   }
+}
+
+class EmergencyContactRef {
+  final String name;
+  final String phone;
+  const EmergencyContactRef({required this.name, required this.phone});
+
+  factory EmergencyContactRef.fromMap(Map<String, dynamic> map) {
+    return EmergencyContactRef(name: map['name'] ?? '', phone: map['phone'] ?? '');
+  }
+
+  Map<String, dynamic> toMap() => {'name': name, 'phone': phone};
 }

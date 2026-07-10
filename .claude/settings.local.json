@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(& \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\keytool.exe\" -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -alias androiddebugkey -storepass android -keypass android 2>&1)"
+      "PowerShell(& \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\keytool.exe\" -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -alias androiddebugkey -storepass android -keypass android 2>&1)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter build *)",
+      "Bash(flutter pub *)",
+      "Bash(firebase deploy *)",
+      "Bash(firebase use *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://safescan-cfe7e.web.app/found/test123\")",
+      "Bash(git add *)"
     ]
   }
 }

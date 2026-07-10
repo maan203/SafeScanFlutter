@@ -136,7 +136,16 @@ class _MyQrsScreenState extends State<MyQrsScreen> {
                       Text('Get weatherproof QR stickers delivered. Starting at ₹99.', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.4)),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Ordering physical stickers — coming soon, not available yet.', style: GoogleFonts.inter()),
+                              backgroundColor: const Color(0xFF1E293B),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
                           minimumSize: const Size(130, 44),
@@ -181,7 +190,7 @@ class _QrCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(10),
               child: QrImageView(
-                data: 'https://safescan.app/scan/${asset.id}',
+                data: 'https://safescan-cfe7e.web.app/found/${asset.id}',
                 version: QrVersions.auto,
                 backgroundColor: Colors.white,
                 eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0F172A)),

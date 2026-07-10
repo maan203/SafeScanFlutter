@@ -1,11 +1,14 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'settings_service.dart';
 
 class LocationService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Future<Position?> getCurrentPosition() async {
+    if (!SettingsService.instance.locationSharingEnabled) return null;
+
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
 

@@ -59,6 +59,29 @@ class AuthService {
     return UserModel.fromFirestore(doc);
   }
 
+  /// Signs in without a real account — used by someone who scanned a
+  /// found-item QR code and wants to chat with the owner without creating
+  /// a full SafeScan account. Free (Firebase Anonymous Auth), persists on
+  /// this device until they explicitly sign out.
+  Future<UserModel?> signInAnonymously(String displayName) async {
+    final existing = _auth.currentUser;
+    if (existing != null && existing.isAnonymous) {
+      return _fetchUserModel(existing.uid);
+    }
+    final cred = await _auth.signInAnonymously();
+    final uid = cred.user!.uid;
+    final user = UserModel(
+      uid: uid,
+      name: displayName.trim().isEmpty ? 'Guest' : displayName.trim(),
+      email: '',
+      createdAt: DateTime.now(),
+    );
+    await _db.collection('users').doc(uid).set(user.toMap());
+    return user;
+  }
+
+  bool get isAnonymous => _auth.currentUser?.isAnonymous ?? false;
+
   Future<void> resetPassword(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }

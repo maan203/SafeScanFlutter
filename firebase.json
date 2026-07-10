@@ -1,0 +1,9 @@
+{
+  "hosting": {
+    "public": "web-fallback",
+    "ignore": ["firebase.json", "**/.*"],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}

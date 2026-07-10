@@ -26,19 +26,22 @@ class AssetsProvider extends ChangeNotifier {
       },
       onError: (e) {
         _loading = false;
-        _error = null; // fail silently — show empty state
+        _error = e.toString();
         notifyListeners();
       },
     );
   }
 
-  Future<void> addAsset(String uid, AssetModel asset) async {
+  Future<bool> addAsset(String uid, AssetModel asset) async {
     _loading = true;
+    _error = null;
     notifyListeners();
     try {
       await _service.addAsset(uid, asset);
+      return true;
     } catch (e) {
       _error = e.toString();
+      return false;
     } finally {
       _loading = false;
       notifyListeners();

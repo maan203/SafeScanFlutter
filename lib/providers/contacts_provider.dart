@@ -32,30 +32,39 @@ class ContactsProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> addContact(String uid, ContactModel contact) async {
+  Future<bool> addContact(String uid, ContactModel contact) async {
     try {
       await _service.addContact(uid, contact);
+      _error = null;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return false;
     }
   }
 
-  Future<void> deleteContact(String uid, String contactId) async {
+  Future<bool> deleteContact(String uid, String contactId) async {
     try {
       await _service.deleteContact(uid, contactId);
+      _error = null;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return false;
     }
   }
 
-  Future<void> setPrimary(String uid, String contactId) async {
+  Future<bool> setPrimary(String uid, String contactId) async {
     try {
       await _service.setPrimary(uid, contactId);
+      _error = null;
+      return true;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+      return false;
     }
   }
 }

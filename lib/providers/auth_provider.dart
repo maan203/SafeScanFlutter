@@ -18,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get loading => _loading;
   bool get isLoggedIn => _status == AuthStatus.authenticated;
+  bool get isAnonymous => _service.isAnonymous;
 
   AuthProvider() {
     _service.authStateChanges.listen(_onAuthChanged);
@@ -81,6 +82,28 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } on FirebaseAuthException catch (e) {
       _error = _friendlyError(e.code);
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> continueAsGuest(String displayName) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _user = await _service.signInAnonymously(displayName);
+      _status = AuthStatus.authenticated;
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = e.code == 'operation-not-allowed'
+          ? 'Anonymous sign-in is not enabled for this Firebase project. Enable it in Firebase Console → Authentication → Sign-in method.'
+          : _friendlyError(e.code);
+      return false;
+    } catch (e) {
+      _error = e.toString();
       return false;
     } finally {
       _loading = false;

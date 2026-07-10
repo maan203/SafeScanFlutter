@@ -24,7 +24,7 @@
 - **QR Code Management** — Generate unique QR codes for assets, toggle active/inactive, track scan history
 - **Incident Reporting** — Report accidents, damage, or wrong parking with photo evidence and auto-detected GPS location
 - **Emergency Contacts** — Add contacts that are alerted instantly during an SOS event
-- **SOS System** — One-tap emergency trigger that notifies all contacts with your live location
+- **SOS System** — Hold-to-trigger emergency button that opens your messaging app with your live location pre-filled, ready to send to all emergency contacts in one tap
 - **Real-time Alerts** — Firebase-powered push notifications and in-app alert feed
 - **Authentication** — Email/password and Google Sign-In via Firebase Auth
 - **QR Scanner** — Scan any SafeScan QR code using the device camera
@@ -66,10 +66,17 @@ lib/
 ## Firestore Collections
 
 ```
+assets/         — QR assets, keyed by asset ID (readable by anyone who scans
+                  the QR — needed so a finder can look one up without an
+                  account; writes restricted to the owner via userId)
+
 users/{uid}/
-  assets/       — QR assets owned by user
   contacts/     — Emergency contacts
   alerts/       — Notifications feed
+
+chats/{chatId}/
+  messages/     — In-app conversation between an asset owner and a finder,
+                  scoped to one asset; either side can close it once resolved
 
 scan_events/    — Public QR scan log
 sos_events/     — SOS triggers
@@ -85,7 +92,7 @@ live_locations/ — Real-time location sharing
 
 - Flutter SDK 3.x
 - Android Studio / VS Code
-- Firebase project (Blaze plan for Firestore)
+- Firebase project on the free **Spark** plan (Firestore, Auth, and Hosting are all free at this scale — no billing account needed)
 
 ### Installation
 
@@ -115,6 +122,26 @@ flutter pub get
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /assets/{assetId} {
+      // Anyone can read an asset by ID — this is how a stranger who scans
+      // your QR code sees the "found this item" screen without an account.
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Owner can change anything. Anyone else (a finder scanning the QR)
+      // may only bump scanCount — nothing else — so recordScan() works
+      // without letting a stranger edit the asset's details.
+      allow update: if (request.auth != null && request.auth.uid == resource.data.userId)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount']);
+    }
+    match /users/{uid}/alerts/{alertId} {
+      allow read, update: if request.auth != null && request.auth.uid == uid;
+      // Must allow an unauthenticated finder to notify the owner, but only
+      // for a scan or incident alert tied to an asset that really belongs
+      // to this uid — never an arbitrary alert for someone else.
+      allow create: if (request.resource.data.type == 'scan' || request.resource.data.type == 'incident' || request.resource.data.type == 'emergency')
+        && get(/databases/$(database)/documents/assets/$(request.resource.data.assetId)).data.userId == uid;
+    }
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
@@ -122,18 +149,63 @@ service cloud.firestore {
       allow create: if true;
       allow read: if request.auth != null;
     }
-    match /sos_events/{doc} {
-      allow create, read: if request.auth != null;
+    match /sos_events/{sosId} {
+      // Only the person who triggered the SOS can read or update it —
+      // not just "any logged-in user", which would leak GPS coordinates
+      // and emergency contact phone numbers to every other account.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
     }
-    match /incidents/{doc} {
-      allow create, read: if request.auth != null;
+    match /incidents/{incidentId} {
+      // Same principle: only the reporter can read their own report back.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.reportedBy;
+      allow read: if request.auth != null && request.auth.uid == resource.data.reportedBy;
     }
     match /live_locations/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+    match /chats/{chatId} {
+      // Only the asset's owner and the finder who started the chat can see
+      // or touch it. finderId can be a real account or an anonymous one.
+      allow read, update: if request.auth != null
+        && (request.auth.uid == resource.data.ownerId || request.auth.uid == resource.data.finderId);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.finderId;
+      // Only a resolved (closed) chat can be deleted, and only by one of
+      // its two participants — an open conversation can't be yanked away.
+      allow delete: if request.auth != null
+        && (request.auth.uid == resource.data.ownerId || request.auth.uid == resource.data.finderId)
+        && resource.data.isClosed == true;
+
+      match /messages/{messageId} {
+        allow read: if request.auth != null &&
+          (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.ownerId ||
+           request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.finderId);
+        allow create: if request.auth != null &&
+          request.auth.uid == request.resource.data.senderId &&
+          get(/databases/$(database)/documents/chats/$(chatId)).data.isClosed == false &&
+          (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.ownerId ||
+           request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.finderId);
+      }
+    }
   }
 }
 ```
+
+> **You must paste this into Firebase Console → Firestore Database → Rules yourself** — this repo doesn't include a `firestore.rules` file wired to auto-deploy, so I can't apply it for you.
+
+### Web Fallback (free, no app install required)
+
+QR codes point to `https://safescan-cfe7e.web.app/found/{assetId}` — a static page in [`web-fallback/`](web-fallback/index.html) that reads the public `assets/{id}` Firestore document directly via the Firebase JS SDK. Anyone who scans the QR with a plain camera app (no SafeScan installed) sees the asset's name, reward message, and a call-owner button, plus a "Get the SafeScan App" link for the full chat/emergency-relay experience. It also records the scan the same way the in-app flow does. Entirely on Firebase's free **Spark** plan — Hosting doesn't require Cloud Functions or a billing account.
+
+Deploy it yourself (I don't have access to your Firebase project to do this for you):
+
+```bash
+npm install -g firebase-tools   # one-time
+firebase login                  # one-time, opens a browser to sign in
+firebase deploy --only hosting  # run from the project root, redeploy after any web-fallback/ edit
+```
+
+It'll deploy to `https://safescan-cfe7e.web.app` automatically (matches this project's ID). If the page shows a permission or API-key error, register a dedicated Web app in **Firebase Console → Project Settings → Your apps → Add app → Web** (free) and swap in that config inside `web-fallback/index.html`.
 
 ### Run
 

@@ -187,11 +187,12 @@ class _QrScannerPageState extends State<QrScannerPage> {
 
   void _handleScanned(String value) {
     Navigator.pop(context);
-    // If it's a SafeScan URL, extract ID and navigate
+    // If it's a SafeScan URL, extract the asset ID and open the public
+    // "found this item" view — works whether you own the asset or not.
     final uri = Uri.tryParse(value);
-    if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'scan') {
+    if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'found') {
       final assetId = uri.pathSegments[1];
-      context.push('/qr-detail/$assetId');
+      context.push('/found/$assetId');
     } else {
       // Show raw QR value
       showDialog(
@@ -235,7 +236,7 @@ class _QrCodeCard extends StatelessWidget {
         child: Row(
           children: [
             QrImageView(
-              data: 'https://safescan.app/scan/${asset.id}',
+              data: 'https://safescan-cfe7e.web.app/found/${asset.id}',
               version: QrVersions.auto,
               size: 72,
               eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF1E293B)),

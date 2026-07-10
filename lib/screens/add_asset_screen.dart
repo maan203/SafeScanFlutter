@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
+import '../providers/contacts_provider.dart';
 import '../models/asset_model.dart';
 
 class AddAssetScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
   String _selectedType = 'Vehicle';
   bool _showPhone = true;
   bool _showEmail = true;
+  final Set<String> _selectedContactIds = {};
 
   final List<_AssetType> _types = [
     _AssetType(label: 'Vehicle', icon: Icons.directions_car_outlined),
@@ -30,6 +32,7 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
     _AssetType(label: 'Laptop', icon: Icons.laptop_outlined),
     _AssetType(label: 'Bag', icon: Icons.backpack_outlined),
     _AssetType(label: 'Pet', icon: Icons.pets_outlined),
+    _AssetType(label: 'Person', icon: Icons.child_care_outlined),
     _AssetType(label: 'Other', icon: Icons.inventory_2_outlined),
   ];
 
@@ -38,8 +41,14 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
 
     final auth = context.read<AuthProvider>();
     final assetsP = context.read<AssetsProvider>();
+    final contactsP = context.read<ContactsProvider>();
     final uid = auth.user?.uid;
     if (uid == null) return;
+
+    final emergencyContacts = contactsP.contacts
+        .where((c) => _selectedContactIds.contains(c.id))
+        .map((c) => EmergencyContactRef(name: c.name, phone: c.phone))
+        .toList();
 
     final asset = AssetModel(
       id: '',
@@ -54,26 +63,40 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
       scanCount: 0,
       createdAt: DateTime.now(),
       userId: uid,
+      userName: auth.user?.name ?? 'Owner',
+      emergencyContacts: emergencyContacts,
     );
 
-    await assetsP.addAsset(uid, asset);
+    final ok = await assetsP.addAsset(uid, asset);
+    if (!mounted) return;
 
-    if (mounted) {
+    if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Asset added! QR code generated.', style: GoogleFonts.inter()),
-          backgroundColor: const Color(0xFF22C55E),
+          content: Text('Failed to add asset: ${assetsP.error ?? 'Unknown error'}', style: GoogleFonts.inter()),
+          backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-      context.pop();
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Asset added! QR code generated.', style: GoogleFonts.inter()),
+        backgroundColor: const Color(0xFF22C55E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final assetsP = context.watch<AssetsProvider>();
+    final contactsP = context.watch<ContactsProvider>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -184,6 +207,47 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
                     value: _showEmail,
                     onChanged: (v) => setState(() => _showEmail = v),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              _SectionCard(
+                title: 'Emergency SOS Contacts (Optional)',
+                children: [
+                  Text(
+                    'If someone scans this QR in a genuine emergency — an accident, injury, or a lost child — they can alert these contacts directly with their location, even if you can\'t respond yourself.',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  if (contactsP.contacts.isEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('Add emergency contacts first from your Profile.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF94A3B8))),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/emergency-contacts'),
+                          child: Text('Add', style: GoogleFonts.inter(color: const Color(0xFF22C55E), fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    )
+                  else
+                    ...contactsP.contacts.map((c) => CheckboxListTile(
+                          value: _selectedContactIds.contains(c.id),
+                          onChanged: (v) => setState(() {
+                            if (v == true) {
+                              _selectedContactIds.add(c.id);
+                            } else {
+                              _selectedContactIds.remove(c.id);
+                            }
+                          }),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: const Color(0xFF22C55E),
+                          title: Text(c.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: Text(c.phone, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
+                        )),
                 ],
               ),
 

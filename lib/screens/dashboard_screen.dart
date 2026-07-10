@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
 import '../providers/alerts_provider.dart';
+import '../providers/chats_provider.dart';
 import '../models/asset_model.dart';
 import '../models/alert_model.dart';
 
@@ -23,11 +24,13 @@ class DashboardScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final assetsP = context.watch<AssetsProvider>();
     final alertsP = context.watch<AlertsProvider>();
+    final chatsP = context.watch<ChatsProvider>();
 
     final assets = assetsP.assets;
     final recentAlerts = alertsP.alerts.take(3).toList();
     final userName = auth.user?.name ?? 'User';
     final unreadCount = alertsP.unreadCount;
+    final openChatCount = chatsP.openCount;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -58,37 +61,74 @@ class DashboardScreen extends StatelessWidget {
                                 Text(userName, style: GoogleFonts.inter(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                               ],
                             ),
-                            GestureDetector(
-                              onTap: () => context.push('/alerts'),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
-                                  ),
-                                  if (unreadCount > 0)
-                                    Positioned(
-                                      right: 6,
-                                      top: 6,
-                                      child: Container(
-                                        width: 16,
-                                        height: 16,
-                                        decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
-                                        child: Center(
-                                          child: Text(
-                                            unreadCount > 9 ? '9+' : '$unreadCount',
-                                            style: GoogleFonts.inter(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => context.push('/inbox'),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
+                                      ),
+                                      if (openChatCount > 0)
+                                        Positioned(
+                                          right: 6,
+                                          top: 6,
+                                          child: Container(
+                                            width: 16,
+                                            height: 16,
+                                            decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
+                                            child: Center(
+                                              child: Text(
+                                                openChatCount > 9 ? '9+' : '$openChatCount',
+                                                style: GoogleFonts.inter(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
                                           ),
                                         ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                  onTap: () => context.push('/alerts'),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
                                       ),
-                                    ),
-                                ],
-                              ),
+                                      if (unreadCount > 0)
+                                        Positioned(
+                                          right: 6,
+                                          top: 6,
+                                          child: Container(
+                                            width: 16,
+                                            height: 16,
+                                            decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                                            child: Center(
+                                              child: Text(
+                                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                                style: GoogleFonts.inter(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -114,16 +154,6 @@ class DashboardScreen extends StatelessWidget {
                                   Text('Protection Active', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
                                   Text('${assets.length} asset${assets.length == 1 ? '' : 's'} monitored', style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12)),
                                 ],
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF22C55E).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
-                                ),
-                                child: Text('PRO', style: GoogleFonts.inter(color: const Color(0xFF22C55E), fontWeight: FontWeight.w800, fontSize: 11)),
                               ),
                             ],
                           ),
@@ -193,7 +223,6 @@ class DashboardScreen extends StatelessWidget {
                   _QuickBtn(icon: Icons.add_rounded, label: 'Add QR', onTap: () => context.push('/add-asset')),
                   _QuickBtn(icon: Icons.phone_outlined, label: 'Contacts', onTap: () => context.push('/emergency-contacts')),
                   _QuickBtn(icon: Icons.location_on_outlined, label: 'Location', onTap: () => context.push('/live-location')),
-                  _QuickBtn(icon: Icons.warning_amber_rounded, label: 'Report', onTap: () => context.push('/report-incident')),
                 ],
               ),
             ),
