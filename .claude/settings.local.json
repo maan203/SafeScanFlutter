@@ -8,7 +8,8 @@
       "Bash(firebase deploy *)",
       "Bash(firebase use *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://safescan-cfe7e.web.app/found/test123\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

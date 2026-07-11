@@ -1,11 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../models/chat_model.dart';
 import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
+import '../services/location_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -17,10 +22,13 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _service = ChatService();
+  final _locationService = LocationService();
+  final _picker = ImagePicker();
   final _textCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   late Future<ChatModel?> _chatFuture;
   bool _sending = false;
+  bool _sendingAttachment = false;
 
   @override
   void initState() {
@@ -45,6 +53,103 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter()),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  Future<void> _pickAndSendImage(String uid, String name, ImageSource source) async {
+    // Kept small on purpose: images are stored as base64 directly inside the
+    // Firestore message (no Cloud Storage bucket, which now requires the
+    // paid Blaze plan on new projects) — Firestore caps a document at ~1MB.
+    final img = await _picker.pickImage(source: source, imageQuality: 45, maxWidth: 900);
+    if (img == null || !mounted) return;
+    setState(() => _sendingAttachment = true);
+    try {
+      await _service.sendImageMessage(widget.chatId, uid, name, File(img.path));
+      _scrollToBottom();
+    } catch (e) {
+      _showError('Could not send photo: $e');
+    } finally {
+      if (mounted) setState(() => _sendingAttachment = false);
+    }
+  }
+
+  Future<void> _shareLocation(String uid, String name) async {
+    setState(() => _sendingAttachment = true);
+    try {
+      final pos = await _locationService.getCurrentPosition().timeout(const Duration(seconds: 8));
+      if (pos == null) {
+        _showError('Could not get your location. Check location permissions or the Location Sharing setting in your Profile.');
+        return;
+      }
+      final address = await _locationService.getAddressFromPosition(pos);
+      await _service.sendLocationMessage(widget.chatId, uid, name, lat: pos.latitude, lng: pos.longitude, label: address);
+      _scrollToBottom();
+    } catch (e) {
+      _showError('Could not share location: $e');
+    } finally {
+      if (mounted) setState(() => _sendingAttachment = false);
+    }
+  }
+
+  void _showAttachmentSheet(String uid, String name) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF22C55E).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.camera_alt_outlined, color: Color(0xFF22C55E))),
+              title: Text('Take Photo', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSendImage(uid, name, ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF3B82F6).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.photo_library_outlined, color: Color(0xFF3B82F6))),
+              title: Text('Choose from Gallery', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSendImage(uid, name, ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.location_on_outlined, color: Color(0xFFEF4444))),
+              title: Text('Share My Location', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _shareLocation(uid, name);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmClose() async {
@@ -206,9 +311,20 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!chat.isClosed)
                 Container(
                   color: Colors.white,
-                  padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
+                  padding: EdgeInsets.only(left: 8, right: 12, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
                   child: Row(
                     children: [
+                      GestureDetector(
+                        onTap: _sendingAttachment ? null : () => _showAttachmentSheet(uid, myName),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: _sendingAttachment
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
+                              : const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF64748B), size: 26),
+                        ),
+                      ),
                       Expanded(
                         child: TextField(
                           controller: _textCtrl,
@@ -271,13 +387,22 @@ class _MessageBubble extends StatelessWidget {
     return '$h:$m ${dt.hour >= 12 ? 'PM' : 'AM'}';
   }
 
+  Future<void> _openLocation() async {
+    if (message.lat == null || message.lng == null) return;
+    final uri = Uri.parse('https://maps.google.com/?q=${message.lat},${message.lng}');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isImage = message.type == ChatMessageType.image && message.imageBase64 != null;
+    final isLocation = message.type == ChatMessageType.location && message.lat != null;
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: isImage ? const EdgeInsets.all(6) : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xFF22C55E) : Colors.white,
@@ -295,12 +420,61 @@ class _MessageBubble extends StatelessWidget {
           children: [
             if (!isMe)
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding: EdgeInsets.only(bottom: 3, left: isImage ? 6 : 0, top: isImage ? 4 : 0),
                 child: Text(message.senderName, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF22C55E))),
               ),
-            Text(message.text, style: GoogleFonts.inter(fontSize: 14, color: isMe ? Colors.white : const Color(0xFF0F172A))),
-            const SizedBox(height: 3),
-            Text(_time(message.createdAt), style: GoogleFonts.inter(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF94A3B8))),
+            if (isImage)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Builder(
+                  builder: (context) {
+                    try {
+                      final bytes = base64Decode(message.imageBase64!);
+                      return Image.memory(
+                        bytes,
+                        width: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(width: 200, height: 120, child: Center(child: Icon(Icons.broken_image_outlined, color: Colors.grey))),
+                      );
+                    } catch (_) {
+                      return const SizedBox(width: 200, height: 120, child: Center(child: Icon(Icons.broken_image_outlined, color: Colors.grey)));
+                    }
+                  },
+                ),
+              )
+            else if (isLocation)
+              GestureDetector(
+                onTap: _openLocation,
+                child: Container(
+                  width: 200,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isMe ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, color: isMe ? Colors.white : const Color(0xFFEF4444), size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          message.locationLabel ?? 'Shared location — tap to open',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isMe ? Colors.white : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Text(message.text, style: GoogleFonts.inter(fontSize: 14, color: isMe ? Colors.white : const Color(0xFF0F172A))),
+            Padding(
+              padding: EdgeInsets.only(left: isImage ? 6 : 0, top: 3, bottom: isImage ? 2 : 0),
+              child: Text(_time(message.createdAt), style: GoogleFonts.inter(fontSize: 10, color: isMe ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF94A3B8))),
+            ),
           ],
         ),
       ),

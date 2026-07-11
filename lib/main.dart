@@ -150,6 +150,8 @@ class _AppRouterState extends State<_AppRouter> {
         GoRoute(path: '/add-asset', builder: (_, __) => const AddAssetScreen()),
       ],
     );
+
+    NotificationService.instance.onTapRoute = (route) => _router.push(route);
   }
 
   @override

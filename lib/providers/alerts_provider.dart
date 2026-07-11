@@ -27,7 +27,12 @@ class AlertsProvider extends ChangeNotifier {
           for (final alert in list) {
             if (!_seenIds.contains(alert.id)) {
               _seenIds.add(alert.id);
-              NotificationService.instance.show(title: alert.title, body: alert.body);
+              final needsAsset = alert.type == AlertType.scan || alert.type == AlertType.incident || alert.type == AlertType.emergency;
+              NotificationService.instance.show(
+                title: alert.title,
+                body: alert.body,
+                route: needsAsset && alert.assetId != null ? '/qr-detail/${alert.assetId}' : '/alerts',
+              );
             }
           }
         }

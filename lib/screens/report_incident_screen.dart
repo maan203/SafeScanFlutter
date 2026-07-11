@@ -35,8 +35,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   final List<_IncidentType> _types = const [
     _IncidentType(label: 'Accident', icon: Icons.car_crash_outlined, color: Color(0xFFEF4444)),
     _IncidentType(label: 'Wrong Parking', icon: Icons.no_crash_outlined, color: Color(0xFFF59E0B)),
-    _IncidentType(label: 'Damage', icon: Icons.handyman_outlined, color: Color(0xFF8B5CF6)),
-    _IncidentType(label: 'Breakdown', icon: Icons.build_outlined, color: Color(0xFF3B82F6)),
+    _IncidentType(label: 'Flat Tire', icon: Icons.report_problem_outlined, color: Color(0xFF8B5CF6)),
+    _IncidentType(label: 'Lights/Alarm On', icon: Icons.flash_on_outlined, color: Color(0xFF3B82F6)),
   ];
 
   @override

@@ -90,6 +90,43 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
     }
   }
 
+  void _showEmergencyContactPicker(BuildContext context, AssetModel asset) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text('Call an emergency contact', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 16, color: const Color(0xFF0F172A))),
+            const SizedBox(height: 12),
+            ...asset.emergencyContacts.map((c) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(color: const Color(0xFF22C55E).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.phone_outlined, color: Color(0xFF22C55E)),
+                  ),
+                  title: Text(c.name, style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                  subtitle: Text(c.phone, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
+                  onTap: () {
+                    Navigator.pop(context);
+                    launchUrl(Uri(scheme: 'tel', path: c.phone));
+                  },
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmAndTriggerEmergency(AssetModel asset) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -372,6 +409,24 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
                     label: 'Call owner',
                     value: asset.phone!,
                     onTap: () => launchUrl(Uri(scheme: 'tel', path: asset.phone)),
+                  ),
+                ],
+
+                if (!isOwner && asset.emergencyContacts.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _ContactTile(
+                    icon: Icons.support_agent_rounded,
+                    label: asset.emergencyContacts.length == 1 ? 'Call emergency contact' : 'Call an emergency contact',
+                    value: asset.emergencyContacts.length == 1
+                        ? '${asset.emergencyContacts.first.name} · ${asset.emergencyContacts.first.phone}'
+                        : '${asset.emergencyContacts.length} contacts available',
+                    onTap: () {
+                      if (asset.emergencyContacts.length == 1) {
+                        launchUrl(Uri(scheme: 'tel', path: asset.emergencyContacts.first.phone));
+                      } else {
+                        _showEmergencyContactPicker(context, asset);
+                      }
+                    },
                   ),
                 ],
 

@@ -13,12 +13,23 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  /// Set by main.dart once the router exists. The payload passed to
+  /// [show] is just a route path (e.g. "/chat/abc123"), so tapping a
+  /// notification navigates straight there.
+  void Function(String route)? onTapRoute;
+
   Future<void> init() async {
     if (_initialized) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: (details) {
+        final payload = details.payload;
+        if (payload != null && payload.isNotEmpty) {
+          onTapRoute?.call(payload);
+        }
+      },
     );
     await _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -26,7 +37,7 @@ class NotificationService {
     _initialized = true;
   }
 
-  Future<void> show({required String title, required String body}) async {
+  Future<void> show({required String title, required String body, String? route}) async {
     if (!SettingsService.instance.notificationsEnabled) return;
     await init();
     const details = NotificationDetails(
@@ -44,6 +55,7 @@ class NotificationService {
       title,
       body,
       details,
+      payload: route,
     );
   }
 }

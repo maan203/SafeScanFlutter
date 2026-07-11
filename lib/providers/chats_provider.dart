@@ -35,6 +35,7 @@ class ChatsProvider extends ChangeNotifier {
               NotificationService.instance.show(
                 title: '${chat.otherPartyName(uid)} · ${chat.assetName}',
                 body: chat.lastMessageText,
+                route: '/chat/${chat.id}',
               );
             }
             _seenLastMessageAt[chat.id] = chat.lastMessageAt;

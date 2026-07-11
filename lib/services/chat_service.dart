@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/asset_model.dart';
 import '../models/chat_model.dart';
@@ -117,6 +119,55 @@ class ChatService {
       'createdAt': now,
     });
     await chatRef.update({'lastMessageAt': now, 'lastMessageText': text, 'lastMessageSenderId': senderId});
+  }
+
+  /// Stores the photo as compressed base64 data directly inside the Firestore
+  /// message — no Cloud Storage bucket needed, so this stays on Firebase's
+  /// free Spark plan (Storage now requires the paid Blaze plan to even set
+  /// up on new projects). Firestore caps a document at ~1MB, so the image
+  /// must already be compressed small (see chat_screen.dart's picker settings)
+  /// before it gets here.
+  Future<void> sendImageMessage(String chatId, String senderId, String senderName, File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    if (base64Image.length > 700000) {
+      throw Exception('That photo is too large to send. Please try a smaller one.');
+    }
+
+    final chatRef = _chats.doc(chatId);
+    final now = Timestamp.now();
+    await chatRef.collection('messages').add({
+      'senderId': senderId,
+      'senderName': senderName,
+      'text': '📷 Photo',
+      'type': 'image',
+      'imageBase64': base64Image,
+      'createdAt': now,
+    });
+    await chatRef.update({'lastMessageAt': now, 'lastMessageText': '📷 Photo', 'lastMessageSenderId': senderId});
+  }
+
+  Future<void> sendLocationMessage(
+    String chatId,
+    String senderId,
+    String senderName, {
+    required double lat,
+    required double lng,
+    String? label,
+  }) async {
+    final chatRef = _chats.doc(chatId);
+    final now = Timestamp.now();
+    await chatRef.collection('messages').add({
+      'senderId': senderId,
+      'senderName': senderName,
+      'text': '📍 ${label ?? 'Shared location'}',
+      'type': 'location',
+      'lat': lat,
+      'lng': lng,
+      'locationLabel': label,
+      'createdAt': now,
+    });
+    await chatRef.update({'lastMessageAt': now, 'lastMessageText': '📍 Shared location', 'lastMessageSenderId': senderId});
   }
 
   Future<void> closeChat(String chatId) async {
