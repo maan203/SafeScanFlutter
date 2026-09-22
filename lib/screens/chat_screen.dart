@@ -13,6 +13,7 @@ import '../models/chat_model.dart';
 import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
 import '../services/location_service.dart';
+import '../widgets/tappable.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -360,8 +361,10 @@ class _ChatScreenState extends State<ChatScreen> {
                               ],
                             ),
                           ),
-                          GestureDetector(
+                          Tappable(
                             onTap: _cancelReply,
+                            borderRadius: BorderRadius.circular(14),
+                            semanticLabel: 'Cancel reply',
                             child: const Padding(
                               padding: EdgeInsets.all(4),
                               child: Icon(Icons.close_rounded, size: 18, color: Color(0xFF94A3B8)),
@@ -376,8 +379,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: EdgeInsets.only(left: 8, right: 12, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
                   child: Row(
                     children: [
-                      GestureDetector(
+                      Tappable(
                         onTap: _gettingLocation ? null : () => _showAttachmentSheet(uid, myName),
+                        borderRadius: BorderRadius.circular(22),
+                        semanticLabel: 'Add attachment',
                         child: Container(
                           width: 44,
                           height: 44,
@@ -402,8 +407,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
+                      Tappable(
                         onTap: () => _send(uid, myName),
+                        borderRadius: BorderRadius.circular(22),
+                        semanticLabel: 'Send message',
                         child: Container(
                           width: 44,
                           height: 44,
@@ -595,8 +602,9 @@ class _MessageBubble extends StatelessWidget {
                 ),
               )
             else if (isLocation)
-              GestureDetector(
+              Tappable(
                 onTap: _openLocation,
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: 200,
                   padding: const EdgeInsets.all(10),

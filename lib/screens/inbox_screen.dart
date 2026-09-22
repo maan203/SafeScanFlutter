@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chats_provider.dart';
 import '../models/chat_model.dart';
 import '../services/chat_service.dart';
+import '../widgets/tappable.dart';
 
 class InboxScreen extends StatelessWidget {
   const InboxScreen({super.key});
@@ -91,7 +92,8 @@ class InboxScreen extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
                     final chat = chats[i];
-                    final row = GestureDetector(
+                    final row = Tappable(
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () => context.push('/chat/${chat.id}'),
                       child: _ChatRow(chat: chat, uid: uid, timeAgo: _timeAgo(chat.lastMessageAt)),
                     );

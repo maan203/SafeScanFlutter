@@ -8,6 +8,7 @@ import '../providers/alerts_provider.dart';
 import '../providers/chats_provider.dart';
 import '../models/asset_model.dart';
 import '../models/alert_model.dart';
+import '../widgets/tappable.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -64,8 +65,10 @@ class DashboardScreen extends StatelessWidget {
                             ),
                             Row(
                               children: [
-                                GestureDetector(
+                                Tappable(
                                   onTap: () => context.push('/inbox'),
+                                  borderRadius: BorderRadius.circular(12),
+                                  semanticLabel: 'Inbox',
                                   child: Stack(
                                     children: [
                                       Container(
@@ -97,8 +100,10 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                GestureDetector(
+                                Tappable(
                                   onTap: () => context.push('/alerts'),
+                                  borderRadius: BorderRadius.circular(12),
+                                  semanticLabel: 'Notifications',
                                   child: Stack(
                                     children: [
                                       Container(
@@ -169,10 +174,13 @@ class DashboardScreen extends StatelessWidget {
 
           // SOS banner
           SliverToBoxAdapter(
-            child: GestureDetector(
-              onTap: () => context.push('/sos'),
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Tappable(
+                onTap: () => context.push('/sos'),
+                borderRadius: BorderRadius.circular(18),
+                semanticLabel: 'Emergency SOS',
+                child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -203,6 +211,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 24),
                   ],
+                ),
                 ),
               ),
             ),
@@ -237,9 +246,13 @@ class DashboardScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Your Assets', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
-                  GestureDetector(
+                  Tappable(
                     onTap: () => context.push('/my-qrs'),
-                    child: Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                    ),
                   ),
                 ],
               ),
@@ -314,9 +327,13 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Recent Activity', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
-                    GestureDetector(
+                    Tappable(
                       onTap: () => context.push('/alerts'),
-                      child: Text('All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        child: Text('All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                      ),
                     ),
                   ],
                 ),
@@ -328,7 +345,8 @@ class DashboardScreen extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: GestureDetector(
+                    child: Tappable(
+                      borderRadius: BorderRadius.circular(14),
                       onTap: () {
                         final alert = recentAlerts[i];
                         if (!alert.isRead) alertsP.markRead(uid, alert.id);
@@ -361,19 +379,24 @@ class _QuickBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16)),
-            child: Icon(icon, color: const Color(0xFF1E293B), size: 24),
-          ),
-          const SizedBox(height: 6),
-          Text(label, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
-        ],
+      borderRadius: BorderRadius.circular(16),
+      semanticLabel: label,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Column(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16)),
+              child: Icon(icon, color: const Color(0xFF1E293B), size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+          ],
+        ),
       ),
     );
   }
@@ -386,8 +409,9 @@ class _AssetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

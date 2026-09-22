@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
+import '../widgets/tappable.dart';
 
 class QrDetailScreen extends StatefulWidget {
   final String assetId;
@@ -152,8 +153,9 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
                         Text(asset.name, style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
                         Text(asset.type, style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B))),
                         const SizedBox(height: 6),
-                        GestureDetector(
+                        Tappable(
                           onTap: () => assetsP.toggleActive(uid, assetId, !asset.isActive),
+                          borderRadius: BorderRadius.circular(8),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(

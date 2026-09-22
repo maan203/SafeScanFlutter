@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/alerts_provider.dart';
 import '../models/alert_model.dart';
+import '../widgets/tappable.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
@@ -66,7 +67,8 @@ class AlertsScreen extends StatelessWidget {
                         child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
                       ),
                       onDismissed: (_) => alertsP.deleteAlert(uid, alert.id),
-                      child: GestureDetector(
+                      child: Tappable(
+                        borderRadius: BorderRadius.circular(16),
                         onTap: () {
                           if (!alert.isRead) alertsP.markRead(uid, alert.id);
                           final assetId = alert.assetId;

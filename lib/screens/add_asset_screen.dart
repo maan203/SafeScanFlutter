@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
 import '../providers/contacts_provider.dart';
 import '../models/asset_model.dart';
+import '../widgets/tappable.dart';
 
 class AddAssetScreen extends StatefulWidget {
   const AddAssetScreen({super.key});
@@ -128,8 +129,10 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
                   itemBuilder: (_, i) {
                     final t = _types[i];
                     final isSelected = _selectedType == t.label;
-                    return GestureDetector(
+                    return Tappable(
                       onTap: () => setState(() => _selectedType = t.label),
+                      borderRadius: BorderRadius.circular(14),
+                      semanticLabel: t.label,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 72,

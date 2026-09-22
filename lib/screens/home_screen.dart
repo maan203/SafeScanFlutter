@@ -42,67 +42,78 @@ class _HomeScreenState extends State<HomeScreen> {
                 final isScan = i == 1;
 
                 return Expanded(
-                  child: GestureDetector(
-                    onTap: () => context.go(tab.route),
-                    behavior: HitTestBehavior.opaque,
-                    child: isScan
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF4ADE80), Color(0xFF16A34A)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF22C55E).withOpacity(0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
+                  child: Semantics(
+                    button: true,
+                    selected: isActive,
+                    label: '${tab.label} tab',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => context.go(tab.route),
+                        borderRadius: BorderRadius.circular(16),
+                        child: isScan
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF4ADE80), Color(0xFF16A34A)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF22C55E).withOpacity(0.35),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 26),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tab.label,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF22C55E),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 26),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                tab.label,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF22C55E),
+                              )
+                            : AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isActive ? tab.activeIcon : tab.icon,
+                                      color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                                      size: 26,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tab.label,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                        color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          )
-                        : AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isActive ? tab.activeIcon : tab.icon,
-                                  color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
-                                  size: 26,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  tab.label,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                                    color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      ),
+                    ),
                   ),
                 );
               }),

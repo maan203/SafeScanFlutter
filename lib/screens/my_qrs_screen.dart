@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:provider/provider.dart';
 import '../providers/assets_provider.dart';
 import '../models/asset_model.dart';
+import '../widgets/tappable.dart';
 
 class MyQrsScreen extends StatefulWidget {
   const MyQrsScreen({super.key});
@@ -60,8 +61,9 @@ class _MyQrsScreenState extends State<MyQrsScreen> {
                     final selected = _filter == f;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
+                      child: Tappable(
                         onTap: () => setState(() => _filter = f),
+                        borderRadius: BorderRadius.circular(20),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -116,8 +118,9 @@ class _MyQrsScreenState extends State<MyQrsScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final asset = filtered[index];
-                      return GestureDetector(
+                      return Tappable(
                         onTap: () => context.push('/qr-detail/${asset.id}'),
+                        borderRadius: BorderRadius.circular(16),
                         child: _QrCard(asset: asset),
                       );
                     },

@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/location_service.dart';
 import '../services/asset_service.dart';
 import '../models/asset_model.dart';
+import '../widgets/tappable.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final String? assetId;
@@ -267,8 +268,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               physics: const NeverScrollableScrollPhysics(),
               children: _types.map((t) {
                 final isSelected = _selectedType == t.label;
-                return GestureDetector(
+                return Tappable(
                   onTap: () => setState(() => _selectedType = t.label),
+                  borderRadius: BorderRadius.circular(14),
+                  semanticLabel: t.label,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
@@ -342,9 +345,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   if (_loadingLocation)
                     const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
                   else
-                    GestureDetector(
+                    Tappable(
                       onTap: _fetchLocation,
-                      child: const Icon(Icons.refresh_rounded, color: Color(0xFF3B82F6), size: 20),
+                      borderRadius: BorderRadius.circular(16),
+                      semanticLabel: 'Refresh location',
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.refresh_rounded, color: Color(0xFF3B82F6), size: 20),
+                      ),
                     ),
                 ],
               ),
@@ -365,8 +373,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (_, i) {
                     if (i == _photos.length) {
-                      return GestureDetector(
+                      return Tappable(
                         onTap: _pickPhoto,
+                        borderRadius: BorderRadius.circular(12),
+                        semanticLabel: 'Add photo',
                         child: Container(
                           width: 100,
                           decoration: BoxDecoration(
@@ -392,8 +402,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         Positioned(
                           top: 4,
                           right: 4,
-                          child: GestureDetector(
+                          child: Tappable(
                             onTap: () => setState(() => _photos.removeAt(i)),
+                            borderRadius: BorderRadius.circular(11),
+                            semanticLabel: 'Remove photo',
                             child: Container(
                               width: 22,
                               height: 22,
@@ -409,8 +421,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               ),
               const SizedBox(height: 16),
             ] else ...[
-              GestureDetector(
+              Tappable(
                 onTap: _pickPhoto,
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 24),

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../providers/assets_provider.dart';
 import '../models/asset_model.dart';
+import '../widgets/tappable.dart';
 
 class ScanScreen extends StatelessWidget {
   const ScanScreen({super.key});
@@ -77,9 +78,13 @@ class ScanScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('My QR Codes', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
-                GestureDetector(
+                Tappable(
                   onTap: () => context.push('/my-qrs'),
-                  child: Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Text('View all', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF22C55E))),
+                  ),
                 ),
               ],
             ),
@@ -247,8 +252,9 @@ class _QrCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

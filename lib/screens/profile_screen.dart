@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/assets_provider.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/tappable.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -141,8 +142,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  GestureDetector(
+                  Tappable(
                     onTap: _showEditProfile,
+                    borderRadius: BorderRadius.circular(42),
+                    semanticLabel: 'Edit profile picture',
                     child: Stack(
                       children: [
                         Container(

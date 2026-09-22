@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/contacts_provider.dart';
 import '../models/contact_model.dart';
+import '../widgets/tappable.dart';
 
 /// Pakistani mobile numbers only: +92 followed by exactly 10 digits.
 /// Accepts common local shorthand (0XXXXXXXXXX or 92XXXXXXXXXX) and
@@ -382,29 +383,39 @@ class _ContactCard extends StatelessWidget {
           ),
           Row(
             children: [
-              GestureDetector(
-                onTap: onEdit,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
-                ),
-              ),
-              if (!contact.isPrimary)
-                GestureDetector(
-                  onTap: onMakePrimary,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Tappable(
+                  onTap: onEdit,
+                  borderRadius: BorderRadius.circular(10),
+                  semanticLabel: 'Edit ${contact.name}',
                   child: Container(
                     width: 36,
                     height: 36,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.star_border_rounded, size: 18, color: Color(0xFFF59E0B)),
+                    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
                   ),
                 ),
-              GestureDetector(
+              ),
+              if (!contact.isPrimary)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Tappable(
+                    onTap: onMakePrimary,
+                    borderRadius: BorderRadius.circular(10),
+                    semanticLabel: 'Make ${contact.name} primary contact',
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.star_border_rounded, size: 18, color: Color(0xFFF59E0B)),
+                    ),
+                  ),
+                ),
+              Tappable(
                 onTap: onCall,
+                borderRadius: BorderRadius.circular(12),
+                semanticLabel: 'Call ${contact.name}',
                 child: Container(
                   width: 40,
                   height: 40,

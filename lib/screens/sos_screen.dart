@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../services/sos_service.dart';
 import '../services/sms_util.dart';
 import '../models/contact_model.dart';
+import '../widgets/tappable.dart';
 
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
@@ -114,8 +115,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             Positioned(
               top: 12,
               left: 16,
-              child: GestureDetector(
+              child: Tappable(
                 onTap: _close,
+                borderRadius: BorderRadius.circular(18),
+                semanticLabel: 'Close',
                 child: Container(
                   width: 36,
                   height: 36,
@@ -418,16 +421,14 @@ class _SosActionsView extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(c.name, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: const Color(0xFF0F172A))),
-                                Text(c.relation, style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
+                                Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: const Color(0xFF0F172A))),
+                                Text(c.relation, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
                               ],
                             ),
                           ),
-                          _RoundIconButton(icon: Icons.chat_rounded, color: const Color(0xFF25D366), onTap: () => _sendWhatsApp(context, c)),
-                          const SizedBox(width: 8),
-                          _RoundIconButton(icon: Icons.sms_rounded, color: const Color(0xFF3B82F6), onTap: () => _sendSmsToContact(context, c)),
-                          const SizedBox(width: 8),
-                          _RoundIconButton(icon: Icons.call_rounded, color: const Color(0xFF64748B), onTap: () => _call(context, c)),
+                          _RoundIconButton(icon: Icons.chat_rounded, color: const Color(0xFF25D366), onTap: () => _sendWhatsApp(context, c), semanticLabel: 'WhatsApp ${c.name}'),
+                          _RoundIconButton(icon: Icons.sms_rounded, color: const Color(0xFF3B82F6), onTap: () => _sendSmsToContact(context, c), semanticLabel: 'SMS ${c.name}'),
+                          _RoundIconButton(icon: Icons.call_rounded, color: const Color(0xFF64748B), onTap: () => _call(context, c), semanticLabel: 'Call ${c.name}'),
                         ],
                       ),
                     ),
@@ -460,17 +461,28 @@ class _RoundIconButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _RoundIconButton({required this.icon, required this.color, required this.onTap});
+  final String? semanticLabel;
+  const _RoundIconButton({required this.icon, required this.color, required this.onTap, this.semanticLabel});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // Tap target is a full 44x44dp for an easy hit even under stress, even
+    // though the visible colored circle stays the original 34dp size.
+    return Tappable(
       onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-        child: Icon(icon, size: 16, color: color),
+      borderRadius: BorderRadius.circular(22),
+      semanticLabel: semanticLabel,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: Icon(icon, size: 16, color: color),
+          ),
+        ),
       ),
     );
   }

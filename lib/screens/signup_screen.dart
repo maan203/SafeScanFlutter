@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/tappable.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -278,14 +279,18 @@ class _SignupScreenState extends State<SignupScreen> {
                         'Already have an account? ',
                         style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 14),
                       ),
-                      GestureDetector(
+                      Tappable(
                         onTap: () => context.go('/login'),
-                        child: Text(
-                          'Sign in',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF22C55E),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          child: Text(
+                            'Sign in',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF22C55E),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),

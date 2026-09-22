@@ -9,6 +9,7 @@ import '../services/asset_service.dart';
 import '../services/chat_service.dart';
 import '../services/location_service.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/tappable.dart';
 
 enum _EmergencyState { idle, sending, sent }
 
@@ -660,8 +661,9 @@ class _ContactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
