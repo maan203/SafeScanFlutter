@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -159,40 +160,62 @@ class _QrScannerPageState extends State<QrScannerPage> {
               final value = barcodes.first.rawValue;
               if (value == null) return;
               _hasScanned = true;
+              HapticFeedback.mediumImpact();
               controller.stop();
+              setState(() {});
               _handleScanned(value);
             },
           ),
           Center(
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF22C55E), width: 3),
+                border: Border.all(color: _hasScanned ? const Color(0xFF22C55E) : const Color(0xFF22C55E).withValues(alpha: 0.7), width: _hasScanned ? 5 : 3),
                 borderRadius: BorderRadius.circular(16),
               ),
+              child: _hasScanned
+                  ? Center(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
+                        child: const Icon(Icons.check_rounded, color: Colors.white, size: 36),
+                      ),
+                    )
+                  : null,
             ),
           ),
           Positioned(
             bottom: 60,
             left: 0,
             right: 0,
-            child: Text('Align QR code within the frame', textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.white, fontSize: 14)),
+            child: Text(
+              _hasScanned ? 'Scanned! Opening...' : 'Align QR code within the frame',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _handleScanned(String value) {
+  Future<void> _handleScanned(String value) async {
+    // Keep the confirmation checkmark on screen briefly so the freeze reads
+    // as "scan confirmed" rather than the camera silently locking up.
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    final router = GoRouter.of(context);
     Navigator.pop(context);
+
     // If it's a SafeScan URL, extract the asset ID and open the public
     // "found this item" view — works whether you own the asset or not.
     final uri = Uri.tryParse(value);
     if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'found') {
       final assetId = uri.pathSegments[1];
-      context.push('/found/$assetId');
+      router.push('/found/$assetId');
     } else {
       // Show raw QR value
       showDialog(

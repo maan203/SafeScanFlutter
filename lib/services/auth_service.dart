@@ -35,9 +35,18 @@ class AuthService {
   }
 
   Future<UserModel?> signInWithGoogle() async {
-    final account = await _googleSignIn.signIn();
-    if (account == null) return null;
-    final gAuth = await account.authentication;
+    final account = await _googleSignIn.signIn().timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw Exception('Google Sign-In timed out. Please try again.'),
+        );
+    if (account == null) return null; // user closed the account picker
+    final gAuth = await account.authentication.timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => throw Exception('Google Sign-In timed out. Please try again.'),
+    );
+    if (gAuth.idToken == null) {
+      throw Exception('Google did not return valid credentials. Please try again.');
+    }
     final credential = GoogleAuthProvider.credential(
       accessToken: gAuth.accessToken,
       idToken: gAuth.idToken,

@@ -29,6 +29,7 @@ class DashboardScreen extends StatelessWidget {
     final assets = assetsP.assets;
     final recentAlerts = alertsP.alerts.take(3).toList();
     final userName = auth.user?.name ?? 'User';
+    final uid = auth.user?.uid ?? '';
     final unreadCount = alertsP.unreadCount;
     final openChatCount = chatsP.openCount;
 
@@ -327,7 +328,18 @@ class DashboardScreen extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _ActivityCard(alert: recentAlerts[i]),
+                    child: GestureDetector(
+                      onTap: () {
+                        final alert = recentAlerts[i];
+                        if (!alert.isRead) alertsP.markRead(uid, alert.id);
+                        final assetId = alert.assetId;
+                        if (assetId == null) return;
+                        if (alert.type == AlertType.scan || alert.type == AlertType.incident || alert.type == AlertType.emergency) {
+                          context.push('/qr-detail/$assetId');
+                        }
+                      },
+                      child: _ActivityCard(alert: recentAlerts[i]),
+                    ),
                   ),
                   childCount: recentAlerts.length,
                 ),

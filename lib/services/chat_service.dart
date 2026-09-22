@@ -109,7 +109,13 @@ class ChatService {
         .map((s) => s.docs.map(ChatMessageModel.fromFirestore).toList());
   }
 
-  Future<void> sendMessage(String chatId, String senderId, String senderName, String text) async {
+  Future<void> sendMessage(
+    String chatId,
+    String senderId,
+    String senderName,
+    String text, {
+    ChatMessageModel? replyTo,
+  }) async {
     final chatRef = _chats.doc(chatId);
     final now = Timestamp.now();
     await chatRef.collection('messages').add({
@@ -117,8 +123,22 @@ class ChatService {
       'senderName': senderName,
       'text': text,
       'createdAt': now,
+      ..._replyFields(replyTo),
     });
     await chatRef.update({'lastMessageAt': now, 'lastMessageText': text, 'lastMessageSenderId': senderId});
+  }
+
+  Map<String, dynamic> _replyFields(ChatMessageModel? replyTo) {
+    if (replyTo == null) return {};
+    return {
+      'replyToId': replyTo.id,
+      'replyToSenderName': replyTo.senderName,
+      'replyToText': switch (replyTo.type) {
+        ChatMessageType.image => '📷 Photo',
+        ChatMessageType.location => '📍 ${replyTo.locationLabel ?? 'Shared location'}',
+        ChatMessageType.text => replyTo.text,
+      },
+    };
   }
 
   /// Stores the photo as compressed base64 data directly inside the Firestore
@@ -127,7 +147,7 @@ class ChatService {
   /// up on new projects). Firestore caps a document at ~1MB, so the image
   /// must already be compressed small (see chat_screen.dart's picker settings)
   /// before it gets here.
-  Future<void> sendImageMessage(String chatId, String senderId, String senderName, File imageFile) async {
+  Future<void> sendImageMessage(String chatId, String senderId, String senderName, File imageFile, {ChatMessageModel? replyTo}) async {
     final bytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(bytes);
     if (base64Image.length > 700000) {
@@ -143,6 +163,7 @@ class ChatService {
       'type': 'image',
       'imageBase64': base64Image,
       'createdAt': now,
+      ..._replyFields(replyTo),
     });
     await chatRef.update({'lastMessageAt': now, 'lastMessageText': '📷 Photo', 'lastMessageSenderId': senderId});
   }
@@ -154,6 +175,7 @@ class ChatService {
     required double lat,
     required double lng,
     String? label,
+    ChatMessageModel? replyTo,
   }) async {
     final chatRef = _chats.doc(chatId);
     final now = Timestamp.now();
@@ -166,6 +188,7 @@ class ChatService {
       'lng': lng,
       'locationLabel': label,
       'createdAt': now,
+      ..._replyFields(replyTo),
     });
     await chatRef.update({'lastMessageAt': now, 'lastMessageText': '📍 Shared location', 'lastMessageSenderId': senderId});
   }

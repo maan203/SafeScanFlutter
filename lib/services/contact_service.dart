@@ -17,6 +17,10 @@ class ContactService {
     await _col(uid).add(contact.toMap());
   }
 
+  Future<void> updateContact(String uid, String contactId, ContactModel contact) async {
+    await _col(uid).doc(contactId).update(contact.toMap());
+  }
+
   Future<void> deleteContact(String uid, String contactId) async {
     await _col(uid).doc(contactId).delete();
   }

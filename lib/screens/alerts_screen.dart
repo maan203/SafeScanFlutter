@@ -56,16 +56,27 @@ class AlertsScreen extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final alert = alerts[index];
-                    return GestureDetector(
-                      onTap: () {
-                        if (!alert.isRead) alertsP.markRead(uid, alert.id);
-                        final assetId = alert.assetId;
-                        if (assetId == null) return;
-                        if (alert.type == AlertType.scan || alert.type == AlertType.incident || alert.type == AlertType.emergency) {
-                          context.push('/qr-detail/$assetId');
-                        }
-                      },
-                      child: _AlertCard(alert: alert),
+                    return Dismissible(
+                      key: ValueKey(alert.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(16)),
+                        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+                      ),
+                      onDismissed: (_) => alertsP.deleteAlert(uid, alert.id),
+                      child: GestureDetector(
+                        onTap: () {
+                          if (!alert.isRead) alertsP.markRead(uid, alert.id);
+                          final assetId = alert.assetId;
+                          if (assetId == null) return;
+                          if (alert.type == AlertType.scan || alert.type == AlertType.incident || alert.type == AlertType.emergency) {
+                            context.push('/qr-detail/$assetId');
+                          }
+                        },
+                        child: _AlertCard(alert: alert),
+                      ),
                     );
                   },
                 ),

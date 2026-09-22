@@ -15,3 +15,14 @@ Future<bool> openSmsComposer(List<String> numbers, String message) async {
   }
   return false;
 }
+
+/// Opens a WhatsApp chat with one contact, pre-filled with a message —
+/// same one-tap-to-send model as SMS. WhatsApp's deep link only supports a
+/// single recipient at a time (unlike SMS), so this is called once per
+/// contact rather than batched.
+Future<bool> openWhatsAppComposer(String number, String message) async {
+  final digits = number.replaceAll(RegExp(r'[^\d]'), '');
+  if (digits.isEmpty) return false;
+  final uri = Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
+  return launchUrl(uri, mode: LaunchMode.externalApplication);
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
@@ -79,9 +80,23 @@ class AuthProvider extends ChangeNotifier {
         _status = AuthStatus.authenticated;
         return true;
       }
-      return false;
+      return false; // user closed the account picker without choosing one
     } on FirebaseAuthException catch (e) {
-      _error = _friendlyError(e.code);
+      _error = e.code == 'account-exists-with-different-credential'
+          ? 'An account already exists with this email using a different sign-in method.'
+          : _friendlyError(e.code);
+      return false;
+    } on PlatformException catch (e) {
+      _error = switch (e.code) {
+        'sign_in_canceled' || 'popup_closed' => null,
+        'network_error' => 'No internet connection. Please try again.',
+        'sign_in_failed' =>
+          'Google Sign-In failed. This usually means Google Sign-In isn\'t fully configured for this app build — please try again or use email sign-in.',
+        _ => 'Google Sign-In failed: ${e.message ?? e.code}',
+      };
+      return false;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
       _loading = false;
@@ -142,14 +157,22 @@ class AuthProvider extends ChangeNotifier {
 
   String _friendlyError(String code) {
     switch (code) {
-      case 'user-not-found': return 'No account found with this email.';
-      case 'wrong-password': return 'Incorrect password.';
+      case 'user-not-found':
+      case 'wrong-password':
+      // Modern Firebase Auth returns this single code for both a wrong
+      // password and an unknown email, to avoid revealing which one it was.
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return 'Invalid email or password.';
+      case 'user-disabled': return 'This account has been disabled. Contact support for help.';
       case 'email-already-in-use': return 'An account already exists with this email.';
       case 'weak-password': return 'Password must be at least 8 characters and include both letters and numbers.';
       case 'invalid-email': return 'Please enter a valid email address.';
-      case 'network-request-failed': return 'No internet connection.';
-      case 'too-many-requests': return 'Too many attempts. Try again later.';
-      default: return 'Something went wrong. Please try again.';
+      case 'network-request-failed': return 'No internet connection. Please check your network and try again.';
+      case 'too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
+      case 'requires-recent-login': return 'Please sign in again to continue.';
+      case 'operation-not-allowed': return 'This sign-in method is not enabled. Please contact support.';
+      default: return 'Something went wrong ($code). Please try again.';
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late Future<ChatModel?> _chatFuture;
   bool _sending = false;
   bool _sendingAttachment = false;
+  ChatMessageModel? _replyingTo;
 
   @override
   void initState() {
@@ -36,14 +38,23 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatFuture = _service.getChat(widget.chatId);
   }
 
+  void _startReply(ChatMessageModel message) {
+    HapticFeedback.selectionClick();
+    setState(() => _replyingTo = message);
+  }
+
+  void _cancelReply() => setState(() => _replyingTo = null);
+
   Future<void> _send(String uid, String name) async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     _textCtrl.clear();
+    final replyTo = _replyingTo;
     try {
-      await _service.sendMessage(widget.chatId, uid, name, text);
+      await _service.sendMessage(widget.chatId, uid, name, text, replyTo: replyTo);
       if (mounted) {
+        setState(() => _replyingTo = null);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollCtrl.hasClients) {
             _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
@@ -82,8 +93,10 @@ class _ChatScreenState extends State<ChatScreen> {
     final img = await _picker.pickImage(source: source, imageQuality: 45, maxWidth: 900);
     if (img == null || !mounted) return;
     setState(() => _sendingAttachment = true);
+    final replyTo = _replyingTo;
     try {
-      await _service.sendImageMessage(widget.chatId, uid, name, File(img.path));
+      await _service.sendImageMessage(widget.chatId, uid, name, File(img.path), replyTo: replyTo);
+      if (mounted) setState(() => _replyingTo = null);
       _scrollToBottom();
     } catch (e) {
       _showError('Could not send photo: $e');
@@ -94,6 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _shareLocation(String uid, String name) async {
     setState(() => _sendingAttachment = true);
+    final replyTo = _replyingTo;
     try {
       final pos = await _locationService.getCurrentPosition().timeout(const Duration(seconds: 8));
       if (pos == null) {
@@ -101,7 +115,8 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       final address = await _locationService.getAddressFromPosition(pos);
-      await _service.sendLocationMessage(widget.chatId, uid, name, lat: pos.latitude, lng: pos.longitude, label: address);
+      await _service.sendLocationMessage(widget.chatId, uid, name, lat: pos.latitude, lng: pos.longitude, label: address, replyTo: replyTo);
+      if (mounted) setState(() => _replyingTo = null);
       _scrollToBottom();
     } catch (e) {
       _showError('Could not share location: $e');
@@ -301,14 +316,61 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemBuilder: (context, i) {
                         final msg = messages[messages.length - 1 - i];
                         final isMe = msg.senderId == uid;
-                        return _MessageBubble(message: msg, isMe: isMe);
+                        return _SwipeToReply(
+                          onReply: () => _startReply(msg),
+                          child: _MessageBubble(message: msg, isMe: isMe),
+                        );
                       },
                     );
                   },
                 ),
               ),
 
-              if (!chat.isClosed)
+              if (!chat.isClosed) ...[
+                if (_replyingTo != null)
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: const Border(left: BorderSide(color: Color(0xFF22C55E), width: 3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Replying to ${_replyingTo!.senderId == uid ? 'yourself' : _replyingTo!.senderName}',
+                                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF22C55E))),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _replyingTo!.type == ChatMessageType.image
+                                      ? '📷 Photo'
+                                      : _replyingTo!.type == ChatMessageType.location
+                                          ? '📍 ${_replyingTo!.locationLabel ?? 'Shared location'}'
+                                          : _replyingTo!.text,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _cancelReply,
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.close_rounded, size: 18, color: Color(0xFF94A3B8)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Container(
                   color: Colors.white,
                   padding: EdgeInsets.only(left: 8, right: 12, top: 8, bottom: MediaQuery.of(context).padding.bottom + 8),
@@ -353,8 +415,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ],
                   ),
-                )
-              else
+                ),
+              ] else
                 Container(
                   width: double.infinity,
                   color: Colors.white,
@@ -373,6 +435,74 @@ class _ChatScreenState extends State<ChatScreen> {
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+}
+
+/// WhatsApp-style swipe-to-reply: drag a message right past a threshold to
+/// select it as the reply target, revealing a reply icon as you drag and
+/// snapping back once released.
+class _SwipeToReply extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onReply;
+  const _SwipeToReply({required this.child, required this.onReply});
+
+  @override
+  State<_SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<_SwipeToReply> with SingleTickerProviderStateMixin {
+  static const _triggerDistance = 56.0;
+  static const _maxDrag = 80.0;
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 200), upperBound: _maxDrag);
+  bool _triggered = false;
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    final next = (_controller.value + details.delta.dx).clamp(0.0, _maxDrag);
+    _controller.value = next;
+    if (next > _triggerDistance && !_triggered) {
+      _triggered = true;
+      HapticFeedback.selectionClick();
+    } else if (next <= _triggerDistance) {
+      _triggered = false;
+    }
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    if (_controller.value > _triggerDistance) widget.onReply();
+    _controller.animateTo(0, curve: Curves.easeOut);
+    _triggered = false;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: _handleDragUpdate,
+      onHorizontalDragEnd: _handleDragEnd,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            Opacity(
+              opacity: (_controller.value / _triggerDistance).clamp(0.0, 1.0),
+              child: const Padding(
+                padding: EdgeInsets.only(left: 2),
+                child: Icon(Icons.reply_rounded, color: Color(0xFF94A3B8), size: 22),
+              ),
+            ),
+            Transform.translate(offset: Offset(_controller.value, 0), child: child),
+          ],
+        ),
+        child: widget.child,
+      ),
+    );
   }
 }
 
@@ -422,6 +552,29 @@ class _MessageBubble extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.only(bottom: 3, left: isImage ? 6 : 0, top: isImage ? 4 : 0),
                 child: Text(message.senderName, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF22C55E))),
+              ),
+            if (message.hasReply)
+              Container(
+                margin: EdgeInsets.only(bottom: 6, left: isImage ? 6 : 0, right: isImage ? 6 : 0, top: isImage ? 4 : 0),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isMe ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border(left: BorderSide(color: isMe ? Colors.white : const Color(0xFF22C55E), width: 3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(message.replyToSenderName ?? '', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: isMe ? Colors.white : const Color(0xFF22C55E))),
+                    Text(
+                      message.replyToText ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(fontSize: 12, color: isMe ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
               ),
             if (isImage)
               ClipRRect(

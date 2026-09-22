@@ -54,4 +54,9 @@ class AlertsProvider extends ChangeNotifier {
   Future<void> markAllRead(String uid) async {
     await _service.markAllRead(uid);
   }
+
+  Future<void> deleteAlert(String uid, String alertId) async {
+    _seenIds.remove(alertId);
+    await _service.deleteAlert(uid, alertId);
+  }
 }

@@ -44,6 +44,18 @@ class ContactsProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateContact(String uid, String contactId, ContactModel contact) async {
+    try {
+      await _service.updateContact(uid, contactId, contact);
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> deleteContact(String uid, String contactId) async {
     try {
       await _service.deleteContact(uid, contactId);

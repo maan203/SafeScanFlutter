@@ -30,4 +30,8 @@ class AlertService {
   Future<void> addAlert(String uid, AlertModel alert) async {
     await _col(uid).add(alert.toMap());
   }
+
+  Future<void> deleteAlert(String uid, String alertId) async {
+    await _col(uid).doc(alertId).delete();
+  }
 }

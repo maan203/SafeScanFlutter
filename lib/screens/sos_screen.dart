@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../providers/auth_provider.dart';
 import '../services/sos_service.dart';
+import '../services/sms_util.dart';
+import '../models/contact_model.dart';
 
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
@@ -22,8 +25,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   bool _isHolding = false;
   bool _sosSent = false;
   bool _sending = false;
-  int _contactsAlerted = 0;
-  bool _smsComposerOpened = false;
+  String _statusText = 'Sending SOS...';
+  SosResult? _result;
+  bool _resolving = false;
+  bool _resolved = false;
   Timer? _holdTimer;
 
   final SosService _sosService = SosService();
@@ -45,7 +50,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   void _onHoldEnd() {
-    if (_sosSent) return;
+    if (_sosSent || _sending) return;
     setState(() => _isHolding = false);
     _progressController.reset();
     _holdTimer?.cancel();
@@ -56,20 +61,46 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     setState(() {
       _isHolding = false;
       _sending = true;
+      _statusText = 'Sending SOS...';
     });
 
     final auth = context.read<AuthProvider>();
     final uid = auth.user?.uid ?? '';
 
-    final result = await _sosService.triggerSos(uid);
+    final result = await _sosService.triggerSos(
+      uid,
+      onStatus: (status) {
+        if (mounted) setState(() => _statusText = status);
+      },
+    );
 
     if (mounted) {
       setState(() {
         _sosSent = true;
         _sending = false;
-        _contactsAlerted = result.contactCount;
-        _smsComposerOpened = result.smsComposerOpened;
+        _result = result;
       });
+    }
+  }
+
+  Future<void> _resolveSos() async {
+    final result = _result;
+    if (result == null || _resolving) return;
+    setState(() => _resolving = true);
+    final auth = context.read<AuthProvider>();
+    try {
+      await _sosService.resolveSos(result.sosId, auth.user?.uid ?? '');
+      if (mounted) setState(() => _resolved = true);
+    } finally {
+      if (mounted) setState(() => _resolving = false);
+    }
+  }
+
+  void _close() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/dashboard');
     }
   }
 
@@ -84,7 +115,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               top: 12,
               left: 16,
               child: GestureDetector(
-                onTap: () => context.pop(),
+                onTap: _close,
                 child: Container(
                   width: 36,
                   height: 36,
@@ -102,43 +133,55 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   style: GoogleFonts.inter(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
             ),
 
-            Center(
-              child: _sosSent
-                  ? _SosSentView(contactsAlerted: _contactsAlerted, smsComposerOpened: _smsComposerOpened)
-                  : _sending
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(width: 60, height: 60, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 4)),
-                            const SizedBox(height: 24),
-                            Text('Sending SOS...', style: GoogleFonts.inter(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
-                          ],
-                        )
-                      : _HoldView(
-                          pulseAnim: _pulseAnim,
-                          isHolding: _isHolding,
-                          progressController: _progressController,
-                          onHoldStart: _onHoldStart,
-                          onHoldEnd: _onHoldEnd,
-                        ),
-            ),
-
-            Positioned(
-              bottom: 40,
-              left: 32,
-              right: 32,
-              child: Text(
-                _sosSent
-                    ? (_smsComposerOpened
-                        ? 'Your messaging app opened with the alert pre-filled — tap Send there to actually notify your contacts.'
-                        : _contactsAlerted == 0
-                            ? 'No emergency contacts found — add one first so SOS has someone to alert.'
-                            : 'Could not open your messaging app automatically. Contact them directly.')
-                    : 'Your live location and emergency message will be sent to all emergency contacts.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
+            Positioned.fill(
+              top: 70,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _sosSent
+                    ? _SosActionsView(
+                        key: const ValueKey('sent'),
+                        result: _result!,
+                        resolving: _resolving,
+                        resolved: _resolved,
+                        onResolve: _resolveSos,
+                        onDone: _close,
+                      )
+                    : _sending
+                        ? Center(
+                            key: const ValueKey('sending'),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(width: 60, height: 60, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 4)),
+                                const SizedBox(height: 24),
+                                Text(_statusText, style: GoogleFonts.inter(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          )
+                        : Center(
+                            key: const ValueKey('hold'),
+                            child: _HoldView(
+                              pulseAnim: _pulseAnim,
+                              isHolding: _isHolding,
+                              progressController: _progressController,
+                              onHoldStart: _onHoldStart,
+                              onHoldEnd: _onHoldEnd,
+                            ),
+                          ),
               ),
             ),
+
+            if (!_sosSent && !_sending)
+              Positioned(
+                bottom: 40,
+                left: 32,
+                right: 32,
+                child: Text(
+                  'Your live location and emergency message will be sent to all emergency contacts.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
+                ),
+              ),
           ],
         ),
       ),
@@ -212,47 +255,223 @@ class _HoldView extends StatelessWidget {
   }
 }
 
-class _SosSentView extends StatelessWidget {
-  final int contactsAlerted;
-  final bool smsComposerOpened;
-  const _SosSentView({required this.contactsAlerted, required this.smsComposerOpened});
+/// Shown once the SOS event is logged: lets the user actually deliver the
+/// pre-filled alert via WhatsApp or SMS (one tap away from Send in either
+/// case) per contact, and mark the situation resolved once it's over.
+class _SosActionsView extends StatelessWidget {
+  final SosResult result;
+  final bool resolving;
+  final bool resolved;
+  final VoidCallback onResolve;
+  final VoidCallback onDone;
+
+  const _SosActionsView({
+    super.key,
+    required this.result,
+    required this.resolving,
+    required this.resolved,
+    required this.onResolve,
+    required this.onDone,
+  });
+
+  Future<void> _sendSmsToAll(BuildContext context) async {
+    final numbers = result.contacts.map((c) => c.phone).where((p) => p.isNotEmpty).toList();
+    final opened = await openSmsComposer(numbers, result.message);
+    if (!opened && context.mounted) {
+      _showSnack(context, 'Could not open your messaging app.');
+    }
+  }
+
+  Future<void> _sendWhatsApp(BuildContext context, ContactModel contact) async {
+    final opened = await openWhatsAppComposer(contact.phone, result.message);
+    if (!opened && context.mounted) {
+      _showSnack(context, 'Could not open WhatsApp.');
+    }
+  }
+
+  Future<void> _sendSmsToContact(BuildContext context, ContactModel contact) async {
+    final opened = await openSmsComposer([contact.phone], result.message);
+    if (!opened && context.mounted) {
+      _showSnack(context, 'Could not open your messaging app.');
+    }
+  }
+
+  Future<void> _call(BuildContext context, ContactModel contact) async {
+    await launchUrl(Uri(scheme: 'tel', path: contact.phone));
+  }
+
+  void _showSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter()),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 120,
-          height: 120,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-          child: Icon(
-            smsComposerOpened ? Icons.sms_rounded : Icons.error_outline_rounded,
-            size: 64,
-            color: const Color(0xFFEF4444),
+    if (resolved) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                child: const Icon(Icons.check_rounded, size: 56, color: Color(0xFF16A34A)),
+              ),
+              const SizedBox(height: 24),
+              Text('You\'re marked safe', style: GoogleFonts.inter(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text('Your emergency alert has been resolved.', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.85), fontSize: 14), textAlign: TextAlign.center),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onDone,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFB91C1C)),
+                  child: const Text('Done'),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          smsComposerOpened ? 'Almost there!' : 'Action needed',
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+      );
+    }
+
+    if (result.contacts.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person_off_outlined, color: Colors.white, size: 56),
+              const SizedBox(height: 16),
+              Text('No emergency contacts to alert', style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text('Add one so SOS has someone to notify next time.', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.85), fontSize: 13), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => context.push('/emergency-contacts'),
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white), foregroundColor: Colors.white),
+                  child: const Text('Add Emergency Contact'),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          smsComposerOpened
-              ? 'Tap Send in Messages to alert $contactsAlerted contact${contactsAlerted == 1 ? '' : 's'}'
-              : contactsAlerted == 0
-                  ? 'No emergency contacts to alert'
-                  : 'Could not open messaging app',
-          style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.8), fontSize: 16),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        TextButton(
-          onPressed: () => context.pop(),
-          child: Text('Close', style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600, decoration: TextDecoration.underline, decorationColor: Colors.white)),
-        ),
-      ],
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Column(
+        children: [
+          Text('Alert sent — choose how to notify each contact', textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
+          const SizedBox(height: 6),
+          Text('Your message is pre-filled with your location — just tap Send.', textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
+          const SizedBox(height: 20),
+
+          if (result.contacts.length > 1) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _sendSmsToAll(context),
+                icon: const Icon(Icons.sms_rounded, size: 18),
+                label: const Text('Send SMS to all contacts'),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white), foregroundColor: Colors.white, minimumSize: const Size(0, 48)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+            child: Column(
+              children: result.contacts.asMap().entries.map((e) {
+                final i = e.key;
+                final c = e.value;
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            child: Text(c.initials, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFFB91C1C))),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(c.name, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: const Color(0xFF0F172A))),
+                                Text(c.relation, style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
+                              ],
+                            ),
+                          ),
+                          _RoundIconButton(icon: Icons.chat_rounded, color: const Color(0xFF25D366), onTap: () => _sendWhatsApp(context, c)),
+                          const SizedBox(width: 8),
+                          _RoundIconButton(icon: Icons.sms_rounded, color: const Color(0xFF3B82F6), onTap: () => _sendSmsToContact(context, c)),
+                          const SizedBox(width: 8),
+                          _RoundIconButton(icon: Icons.call_rounded, color: const Color(0xFF64748B), onTap: () => _call(context, c)),
+                        ],
+                      ),
+                    ),
+                    if (i < result.contacts.length - 1) const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF1F5F9)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: resolving ? null : onResolve,
+              icon: resolving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFB91C1C)))
+                  : const Icon(Icons.check_circle_outline_rounded, size: 20),
+              label: Text(resolving ? 'Marking safe...' : 'I\'m Safe — Resolve'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFB91C1C)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _RoundIconButton({required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+        child: Icon(icon, size: 16, color: color),
+      ),
     );
   }
 }

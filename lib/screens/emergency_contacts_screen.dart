@@ -8,6 +8,17 @@ import '../providers/auth_provider.dart';
 import '../providers/contacts_provider.dart';
 import '../models/contact_model.dart';
 
+/// Pakistani mobile numbers only: +92 followed by exactly 10 digits.
+/// Accepts common local shorthand (0XXXXXXXXXX or 92XXXXXXXXXX) and
+/// normalizes it to +92XXXXXXXXXX; returns null if it can't be normalized.
+String? normalizePakistaniPhone(String raw) {
+  final digits = raw.trim().replaceAll(RegExp(r'[\s-]'), '');
+  if (RegExp(r'^\+92\d{10}$').hasMatch(digits)) return digits;
+  if (RegExp(r'^0\d{10}$').hasMatch(digits)) return '+92${digits.substring(1)}';
+  if (RegExp(r'^92\d{10}$').hasMatch(digits)) return '+$digits';
+  return null;
+}
+
 class EmergencyContactsScreen extends StatelessWidget {
   const EmergencyContactsScreen({super.key});
 
@@ -43,7 +54,7 @@ class EmergencyContactsScreen extends StatelessWidget {
               decoration: BoxDecoration(color: const Color(0xFF1E293B), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
             ),
-            onPressed: () => _showAddDialog(context, uid, contactsP),
+            onPressed: () => _showContactDialog(context, uid, contactsP),
           ),
           const SizedBox(width: 4),
         ],
@@ -114,6 +125,7 @@ class EmergencyContactsScreen extends StatelessWidget {
                         child: _ContactCard(
                           contact: c,
                           onCall: () => _callContact(context, c.phone),
+                          onEdit: () => _showContactDialog(context, uid, contactsP, existing: c),
                           onMakePrimary: () async {
                             final ok = await contactsP.setPrimary(uid, c.id);
                             if (!ok && context.mounted) {
@@ -189,10 +201,13 @@ class EmergencyContactsScreen extends StatelessWidget {
     }
   }
 
-  void _showAddDialog(BuildContext context, String uid, ContactsProvider contactsP) {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final relationCtrl = TextEditingController();
+  void _showContactDialog(BuildContext context, String uid, ContactsProvider contactsP, {ContactModel? existing}) {
+    final isEditing = existing != null;
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final relationCtrl = TextEditingController(text: existing?.relation ?? '');
+    final saving = ValueNotifier(false);
 
     showModalBottomSheet(
       context: context,
@@ -206,48 +221,71 @@ class EmergencyContactsScreen extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              Text('Add Emergency Contact', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: const Color(0xFF0F172A))),
-              const SizedBox(height: 20),
-              _buildField(controller: nameCtrl, label: 'Full Name', hint: 'e.g. Priya Sharma', icon: Icons.person_outline_rounded),
-              const SizedBox(height: 12),
-              _buildField(controller: phoneCtrl, label: 'Phone Number', hint: '+91 98765 43210', icon: Icons.phone_outlined, phone: true),
-              const SizedBox(height: 12),
-              _buildField(controller: relationCtrl, label: 'Relationship', hint: 'e.g. Spouse, Brother', icon: Icons.favorite_border_rounded),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  if (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty) {
-                    final contact = ContactModel(
-                      id: '',
-                      name: nameCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                      relation: relationCtrl.text.trim().isEmpty ? 'Contact' : relationCtrl.text.trim(),
-                      isPrimary: contactsP.contacts.isEmpty,
-                    );
-                    final ok = await contactsP.addContact(uid, contact);
-                    if (!context.mounted) return;
-                    if (ok) {
-                      Navigator.pop(context);
-                    } else {
-                      _showError(context, 'Could not add contact: ${contactsP.error ?? "Unknown error"}');
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF22C55E),
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 20),
+                Text(isEditing ? 'Edit Emergency Contact' : 'Add Emergency Contact', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18, color: const Color(0xFF0F172A))),
+                const SizedBox(height: 20),
+                _buildField(controller: nameCtrl, label: 'Full Name', hint: 'e.g. Ahmed Khan', icon: Icons.person_outline_rounded,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a name' : null),
+                const SizedBox(height: 12),
+                _buildField(
+                  controller: phoneCtrl,
+                  label: 'Phone Number',
+                  hint: '+923001234567',
+                  icon: Icons.phone_outlined,
+                  phone: true,
+                  validator: (v) => normalizePakistaniPhone(v ?? '') == null
+                      ? 'Enter a valid Pakistani number: +92 followed by 10 digits'
+                      : null,
                 ),
-                child: Text('Add Contact', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
-              ),
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(height: 12),
+                _buildField(controller: relationCtrl, label: 'Relationship', hint: 'e.g. Spouse, Brother', icon: Icons.favorite_border_rounded),
+                const SizedBox(height: 24),
+                ValueListenableBuilder<bool>(
+                  valueListenable: saving,
+                  builder: (context, isSaving, _) => ElevatedButton(
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            if (!formKey.currentState!.validate()) return;
+                            saving.value = true;
+                            final contact = ContactModel(
+                              id: existing?.id ?? '',
+                              name: nameCtrl.text.trim(),
+                              phone: normalizePakistaniPhone(phoneCtrl.text)!,
+                              relation: relationCtrl.text.trim().isEmpty ? 'Contact' : relationCtrl.text.trim(),
+                              isPrimary: existing?.isPrimary ?? contactsP.contacts.isEmpty,
+                            );
+                            final ok = isEditing
+                                ? await contactsP.updateContact(uid, existing.id, contact)
+                                : await contactsP.addContact(uid, contact);
+                            saving.value = false;
+                            if (!context.mounted) return;
+                            if (ok) {
+                              Navigator.pop(context);
+                            } else {
+                              _showError(context, 'Could not save contact: ${contactsP.error ?? "Unknown error"}');
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF22C55E),
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(isEditing ? 'Save Changes' : 'Add Contact', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -260,10 +298,12 @@ class EmergencyContactsScreen extends StatelessWidget {
     required String hint,
     required IconData icon,
     bool phone = false,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: phone ? TextInputType.phone : TextInputType.text,
+      validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -281,9 +321,10 @@ class EmergencyContactsScreen extends StatelessWidget {
 class _ContactCard extends StatelessWidget {
   final ContactModel contact;
   final VoidCallback onCall;
+  final VoidCallback onEdit;
   final VoidCallback onMakePrimary;
 
-  const _ContactCard({required this.contact, required this.onCall, required this.onMakePrimary});
+  const _ContactCard({required this.contact, required this.onCall, required this.onEdit, required this.onMakePrimary});
 
   @override
   Widget build(BuildContext context) {
@@ -319,24 +360,38 @@ class _ContactCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(contact.name, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14, color: const Color(0xFF0F172A))),
-                    if (contact.isPrimary) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+            child: GestureDetector(
+              onTap: onEdit,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(contact.name, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14, color: const Color(0xFF0F172A))),
+                      if (contact.isPrimary) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                      ],
                     ],
-                  ],
-                ),
-                Text('${contact.relation} · ${contact.phone}', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
-              ],
+                  ),
+                  Text('${contact.relation} · ${contact.phone}', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
+                ],
+              ),
             ),
           ),
           Row(
             children: [
+              GestureDetector(
+                onTap: onEdit,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                ),
+              ),
               if (!contact.isPrimary)
                 GestureDetector(
                   onTap: onMakePrimary,

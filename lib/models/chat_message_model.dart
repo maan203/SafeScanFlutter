@@ -13,6 +13,9 @@ class ChatMessageModel {
   final double? lat;
   final double? lng;
   final String? locationLabel;
+  final String? replyToId;
+  final String? replyToSenderName;
+  final String? replyToText;
 
   const ChatMessageModel({
     required this.id,
@@ -25,7 +28,12 @@ class ChatMessageModel {
     this.lat,
     this.lng,
     this.locationLabel,
+    this.replyToId,
+    this.replyToSenderName,
+    this.replyToText,
   });
+
+  bool get hasReply => replyToId != null;
 
   factory ChatMessageModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -43,6 +51,9 @@ class ChatMessageModel {
       lat: (d['lat'] as num?)?.toDouble(),
       lng: (d['lng'] as num?)?.toDouble(),
       locationLabel: d['locationLabel'],
+      replyToId: d['replyToId'],
+      replyToSenderName: d['replyToSenderName'],
+      replyToText: d['replyToText'],
     );
   }
 }
