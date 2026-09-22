@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import '../models/chat_model.dart';
 import '../models/chat_message_model.dart';
@@ -28,8 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _textCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   late Future<ChatModel?> _chatFuture;
-  bool _sending = false;
-  bool _sendingAttachment = false;
+  bool _gettingLocation = false;
   ChatMessageModel? _replyingTo;
 
   @override
@@ -45,25 +45,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _cancelReply() => setState(() => _replyingTo = null);
 
-  Future<void> _send(String uid, String name) async {
+  // Sends are optimistic: the input clears and the message list already
+  // reflects the write via Firestore's local cache before the server has
+  // acknowledged it, so nothing here should block on the network — doing
+  // so just makes the app feel stuck on a slow connection.
+  void _send(String uid, String name) {
     final text = _textCtrl.text.trim();
-    if (text.isEmpty || _sending) return;
-    setState(() => _sending = true);
+    if (text.isEmpty) return;
     _textCtrl.clear();
     final replyTo = _replyingTo;
-    try {
-      await _service.sendMessage(widget.chatId, uid, name, text, replyTo: replyTo);
-      if (mounted) {
-        setState(() => _replyingTo = null);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollCtrl.hasClients) {
-            _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-          }
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+    setState(() => _replyingTo = null);
+    _scrollToBottom();
+    _service.sendMessage(widget.chatId, uid, name, text, replyTo: replyTo).catchError((e) {
+      _showError('Message failed to send. Check your connection.');
+    });
   }
 
   void _showError(String message) {
@@ -92,37 +87,42 @@ class _ChatScreenState extends State<ChatScreen> {
     // paid Blaze plan on new projects) — Firestore caps a document at ~1MB.
     final img = await _picker.pickImage(source: source, imageQuality: 45, maxWidth: 900);
     if (img == null || !mounted) return;
-    setState(() => _sendingAttachment = true);
     final replyTo = _replyingTo;
-    try {
-      await _service.sendImageMessage(widget.chatId, uid, name, File(img.path), replyTo: replyTo);
-      if (mounted) setState(() => _replyingTo = null);
-      _scrollToBottom();
-    } catch (e) {
+    setState(() => _replyingTo = null);
+    _scrollToBottom();
+    // Reading+encoding is local and fast; don't block the UI on the
+    // Firestore write itself (see _send for why).
+    _service.sendImageMessage(widget.chatId, uid, name, File(img.path), replyTo: replyTo).catchError((e) {
       _showError('Could not send photo: $e');
-    } finally {
-      if (mounted) setState(() => _sendingAttachment = false);
-    }
+    });
   }
 
   Future<void> _shareLocation(String uid, String name) async {
-    setState(() => _sendingAttachment = true);
+    // Only the GPS fix genuinely needs a spinner — it's the one part of
+    // this that can't be optimistic (there's nothing to send yet).
+    setState(() => _gettingLocation = true);
     final replyTo = _replyingTo;
+    Position? position;
     try {
-      final pos = await _locationService.getCurrentPosition().timeout(const Duration(seconds: 8));
-      if (pos == null) {
-        _showError('Could not get your location. Check location permissions or the Location Sharing setting in your Profile.');
-        return;
-      }
-      final address = await _locationService.getAddressFromPosition(pos);
-      await _service.sendLocationMessage(widget.chatId, uid, name, lat: pos.latitude, lng: pos.longitude, label: address, replyTo: replyTo);
-      if (mounted) setState(() => _replyingTo = null);
-      _scrollToBottom();
-    } catch (e) {
-      _showError('Could not share location: $e');
+      position = await _locationService.getCurrentPosition().timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // fall through to the null check below for one consistent message
     } finally {
-      if (mounted) setState(() => _sendingAttachment = false);
+      if (mounted) setState(() => _gettingLocation = false);
     }
+    if (position == null) {
+      _showError('Could not get your location. Check location permissions or the Location Sharing setting in your Profile.');
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _replyingTo = null);
+    _scrollToBottom();
+    final pos = position;
+    _locationService.getAddressFromPosition(pos).then((address) {
+      return _service.sendLocationMessage(widget.chatId, uid, name, lat: pos.latitude, lng: pos.longitude, label: address, replyTo: replyTo);
+    }).catchError((e) {
+      _showError('Could not share location: $e');
+    });
   }
 
   void _showAttachmentSheet(String uid, String name) {
@@ -377,12 +377,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: _sendingAttachment ? null : () => _showAttachmentSheet(uid, myName),
+                        onTap: _gettingLocation ? null : () => _showAttachmentSheet(uid, myName),
                         child: Container(
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
-                          child: _sendingAttachment
+                          child: _gettingLocation
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF22C55E)))
                               : const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF64748B), size: 26),
                         ),
@@ -408,9 +408,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           width: 44,
                           height: 44,
                           decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
-                          child: _sending
-                              ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Icon(Icons.arrow_upward_rounded, color: Colors.white),
+                          child: const Icon(Icons.arrow_upward_rounded, color: Colors.white),
                         ),
                       ),
                     ],
