@@ -28,6 +28,12 @@
 	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>SafeScan needs access to save QR code images to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SafeScan needs camera access to scan QR codes and take photos in chat.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SafeScan needs access to your photo library to attach photos in chat and incident reports.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SafeScan uses your location to tag scans, incident reports, and to share your location with your emergency contacts when you choose to.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

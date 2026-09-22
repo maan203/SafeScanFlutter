@@ -187,12 +187,12 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _emergencyState = _EmergencyState.idle);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not alert emergency contacts: $e', style: GoogleFonts.inter()),
+            content: Text('Could not alert emergency contacts. Please try again.', style: GoogleFonts.inter()),
             backgroundColor: const Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -1,0 +1,134 @@
+rules_version = '2';
+
+// Deploy with: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---------------- users/{uid} ----------------
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if false;
+
+      match /contacts/{contactId} {
+        allow get, list, create, update, delete: if isOwner(uid);
+      }
+
+      // Written by strangers (often unauthenticated) when they scan a QR
+      // code and trigger a scan/emergency/incident alert for the owner.
+      match /alerts/{alertId} {
+        allow get, list: if isOwner(uid);
+        allow create: if request.resource.data.keys().hasOnly(
+                          ['title', 'body', 'type', 'assetId', 'location', 'isRead', 'createdAt']) &&
+                        request.resource.data.title is string &&
+                        request.resource.data.body is string &&
+                        request.resource.data.type in
+                          ['scan', 'sos', 'location', 'lostFound', 'parking', 'incident', 'emergency'] &&
+                        request.resource.data.isRead == false &&
+                        request.resource.data.createdAt is timestamp;
+        allow update: if isOwner(uid) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // ---------------- assets/{assetId} ----------------
+    match /assets/{assetId} {
+      // Public "found this item" QR flow needs get-by-id to work for anyone.
+      allow get: if true;
+      // Listing (e.g. "my assets") only returns docs matching the query,
+      // and every returned doc must satisfy this rule — so a query that
+      // isn't scoped to the caller's own uid is rejected outright.
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                      // Anonymous scanners may only bump the scan counter by 1 — nothing else.
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount']) &&
+                       request.resource.data.scanCount == resource.data.scanCount + 1);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ---------------- scan_events/{eventId} (write-only log) ----------------
+    match /scan_events/{eventId} {
+      allow create: if request.resource.data.keys().hasOnly(['assetId', 'ownerId', 'location', 'scannedAt']) &&
+                      request.resource.data.assetId is string &&
+                      request.resource.data.ownerId is string &&
+                      request.resource.data.scannedAt is timestamp;
+      allow get, list, update, delete: if false;
+    }
+
+    // ---------------- sos_events/{sosId} ----------------
+    match /sos_events/{sosId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved']);
+      allow delete: if false;
+    }
+
+    // ---------------- live_locations/{uid} ----------------
+    match /live_locations/{uid} {
+      allow get, list, create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    // ---------------- incidents/{incidentId} ----------------
+    match /incidents/{incidentId} {
+      allow create: if isSignedIn() && request.resource.data.reportedBy == request.auth.uid;
+      allow get: if isSignedIn() &&
+                   (resource.data.reportedBy == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.reportedBy == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------------- chats/{chatId} ----------------
+    match /chats/{chatId} {
+      function isParticipant() {
+        return isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.finderId == request.auth.uid);
+      }
+
+      allow get, list: if isParticipant();
+      // The finder starts the chat; ownerId must match the asset's real owner.
+      allow create: if isSignedIn() &&
+                      request.resource.data.finderId == request.auth.uid &&
+                      get(/databases/$(database)/documents/assets/$(request.resource.data.assetId)).data.userId
+                        == request.resource.data.ownerId;
+      allow update: if isParticipant() &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isClosed', 'lastMessageAt', 'lastMessageText', 'lastMessageSenderId']);
+      allow delete: if isParticipant() && resource.data.isClosed == true;
+
+      match /messages/{messageId} {
+        function chat() {
+          return get(/databases/$(database)/documents/chats/$(chatId)).data;
+        }
+        function isChatParticipant() {
+          return isSignedIn() && (chat().ownerId == request.auth.uid || chat().finderId == request.auth.uid);
+        }
+
+        allow get, list: if isChatParticipant();
+        allow create: if isChatParticipant() &&
+                        chat().isClosed == false &&
+                        request.resource.data.senderId == request.auth.uid &&
+                        (!('imageBase64' in request.resource.data) ||
+                         request.resource.data.imageBase64.size() < 1000000);
+        allow update, delete: if false;
+      }
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

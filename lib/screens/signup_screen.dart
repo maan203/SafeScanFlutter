@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,17 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _agreed = false;
+
+  void _showInfo(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text, style: GoogleFonts.inter()),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
@@ -165,7 +177,10 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Please enter a password';
-                      if (v.length < 6) return 'Password must be at least 6 characters';
+                      if (v.length < 8) return 'Password must be at least 8 characters';
+                      if (!RegExp(r'[A-Za-z]').hasMatch(v) || !RegExp(r'[0-9]').hasMatch(v)) {
+                        return 'Password must include both letters and numbers';
+                      }
                       return null;
                     },
                   ),
@@ -219,6 +234,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () => _showInfo('Terms of Service — coming soon.'),
                                 ),
                                 const TextSpan(text: ' and '),
                                 TextSpan(
@@ -228,6 +245,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () => _showInfo('Privacy Policy — coming soon.'),
                                 ),
                               ],
                             ),

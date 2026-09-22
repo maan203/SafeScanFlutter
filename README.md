@@ -26,7 +26,8 @@
 - **Emergency Contacts** — Add contacts that are alerted instantly during an SOS event
 - **SOS System** — Hold-to-trigger emergency button that opens your messaging app with your live location pre-filled, ready to send to all emergency contacts in one tap
 - **Real-time Alerts** — Firebase-powered push notifications and in-app alert feed
-- **Authentication** — Email/password and Google Sign-In via Firebase Auth
+- **In-App Chat** — A finder who scans a QR code can message the owner directly (photos, shared location) without exchanging phone numbers, signing in anonymously if they don't have an account
+- **Authentication** — Email/password, Google Sign-In, and anonymous guest sign-in via Firebase Auth
 - **QR Scanner** — Scan any SafeScan QR code using the device camera
 
 ---
@@ -53,12 +54,14 @@
 ```
 lib/
 ├── main.dart               # App entry, Firebase init, MultiProvider, GoRouter
-├── models/                 # UserModel, AssetModel, ContactModel, AlertModel
+├── models/                 # UserModel, AssetModel, ContactModel, AlertModel,
+│                           # ChatModel, ChatMessageModel
 ├── services/               # AuthService, AssetService, ContactService,
-│                           # AlertService, LocationService, SosService
-├── providers/              # AuthProvider, AssetsProvider,
-│                           # ContactsProvider, AlertsProvider
-└── screens/                # 17 screens — login to SOS
+│                           # AlertService, LocationService, SosService,
+│                           # ChatService, NotificationService, SettingsService
+├── providers/              # AuthProvider, AssetsProvider, ContactsProvider,
+│                           # AlertsProvider, ChatsProvider
+└── screens/                # 19 screens — onboarding to SOS and in-app chat
 ```
 
 ---
@@ -118,80 +121,13 @@ flutter pub get
 
 ### Firestore Security Rules
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /assets/{assetId} {
-      // Anyone can read an asset by ID — this is how a stranger who scans
-      // your QR code sees the "found this item" screen without an account.
-      allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Owner can change anything. Anyone else (a finder scanning the QR)
-      // may only bump scanCount — nothing else — so recordScan() works
-      // without letting a stranger edit the asset's details.
-      allow update: if (request.auth != null && request.auth.uid == resource.data.userId)
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount']);
-    }
-    match /users/{uid}/alerts/{alertId} {
-      allow read, update: if request.auth != null && request.auth.uid == uid;
-      // Must allow an unauthenticated finder to notify the owner, but only
-      // for a scan or incident alert tied to an asset that really belongs
-      // to this uid — never an arbitrary alert for someone else.
-      allow create: if (request.resource.data.type == 'scan' || request.resource.data.type == 'incident' || request.resource.data.type == 'emergency')
-        && get(/databases/$(database)/documents/assets/$(request.resource.data.assetId)).data.userId == uid;
-    }
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-    match /scan_events/{doc} {
-      allow create: if true;
-      allow read: if request.auth != null;
-    }
-    match /sos_events/{sosId} {
-      // Only the person who triggered the SOS can read or update it —
-      // not just "any logged-in user", which would leak GPS coordinates
-      // and emergency contact phone numbers to every other account.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
-    }
-    match /incidents/{incidentId} {
-      // Same principle: only the reporter can read their own report back.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.reportedBy;
-      allow read: if request.auth != null && request.auth.uid == resource.data.reportedBy;
-    }
-    match /live_locations/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-    match /chats/{chatId} {
-      // Only the asset's owner and the finder who started the chat can see
-      // or touch it. finderId can be a real account or an anonymous one.
-      allow read, update: if request.auth != null
-        && (request.auth.uid == resource.data.ownerId || request.auth.uid == resource.data.finderId);
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.finderId;
-      // Only a resolved (closed) chat can be deleted, and only by one of
-      // its two participants — an open conversation can't be yanked away.
-      allow delete: if request.auth != null
-        && (request.auth.uid == resource.data.ownerId || request.auth.uid == resource.data.finderId)
-        && resource.data.isClosed == true;
+Rules live in [`firestore.rules`](firestore.rules) and are wired into [`firebase.json`](firebase.json), so they deploy alongside Hosting instead of needing to be pasted into the console by hand:
 
-      match /messages/{messageId} {
-        allow read: if request.auth != null &&
-          (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.ownerId ||
-           request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.finderId);
-        allow create: if request.auth != null &&
-          request.auth.uid == request.resource.data.senderId &&
-          get(/databases/$(database)/documents/chats/$(chatId)).data.isClosed == false &&
-          (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.ownerId ||
-           request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.finderId);
-      }
-    }
-  }
-}
+```bash
+firebase deploy --only firestore:rules
 ```
 
-> **You must paste this into Firebase Console → Firestore Database → Rules yourself** — this repo doesn't include a `firestore.rules` file wired to auto-deploy, so I can't apply it for you.
+They enforce, per collection: `assets` are readable by anyone via `get` (needed for the "found this item" QR flow) but not listable outside the owner's own query, and only the owner can write to one — except an anonymous scan, which may bump `scanCount` by exactly 1 and nothing else; `users/{uid}` profiles, `contacts`, and `live_locations` are owner-only; `alerts` accepts validated scan/SOS/incident/emergency writes from anyone (a stranger scanning a QR usually isn't signed in) but only the owner can read or mark them read; `sos_events` and `incidents` are readable only by whoever created them; and `chats`/`messages` are restricted to the asset's owner and the finder who started the conversation, with `senderId` forced to match the caller's own auth uid and writes blocked once a chat is closed.
 
 ### Web Fallback (free, no app install required)
 
@@ -232,6 +168,7 @@ flutter run
 - `google-services.json` is excluded from version control — never commit Firebase config files
 - `minSdk = 21` required for Firebase and Geolocator compatibility
 - Google Sign-In requires the debug/release SHA-1 fingerprint registered in Firebase Console
+- Release builds are signed via `android/key.properties` + a keystore (both excluded from version control, per [`android/.gitignore`](android/.gitignore)) — generate your own with `keytool -genkeypair` and see [`android/app/build.gradle.kts`](android/app/build.gradle.kts) for the expected `key.properties` format; without one, release builds fall back to the debug keystore and must not be distributed
 
 ---
 
