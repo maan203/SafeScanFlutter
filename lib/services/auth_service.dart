@@ -68,7 +68,7 @@ class AuthService {
     return UserModel.fromFirestore(doc);
   }
 
-  /// Signs in without a real account — used by someone who scanned a
+  /// Signs in without a real account, used by someone who scanned a
   /// found-item QR code and wants to chat with the owner without creating
   /// a full SafeScan account. Free (Firebase Anonymous Auth), persists on
   /// this device until they explicitly sign out.

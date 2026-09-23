@@ -163,7 +163,7 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              asset.isActive ? '● Active — tap to deactivate' : '● Inactive — tap to activate',
+                              asset.isActive ? '● Active, tap to deactivate' : '● Inactive, tap to activate',
                               style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: asset.isActive ? const Color(0xFF16A34A) : const Color(0xFFEF4444)),
                             ),
                           ),
@@ -292,7 +292,7 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
                         Text(
                           asset.isActive
                               ? 'Anyone who scans this QR sees your details. Turn off to hide them temporarily.'
-                              : 'Scanning this QR currently shows "inactive" — no details or chat are visible.',
+                              : 'Scanning this QR currently shows "inactive", no details or chat are visible.',
                           style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
                         ),
                       ],

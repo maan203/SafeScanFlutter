@@ -48,7 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Sends are optimistic: the input clears and the message list already
   // reflects the write via Firestore's local cache before the server has
-  // acknowledged it, so nothing here should block on the network — doing
+  // acknowledged it, so nothing here should block on the network: doing
   // so just makes the app feel stuck on a slow connection.
   void _send(String uid, String name) {
     final text = _textCtrl.text.trim();
@@ -85,7 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pickAndSendImage(String uid, String name, ImageSource source) async {
     // Kept small on purpose: images are stored as base64 directly inside the
     // Firestore message (no Cloud Storage bucket, which now requires the
-    // paid Blaze plan on new projects) — Firestore caps a document at ~1MB.
+    // paid Blaze plan on new projects). Firestore caps a document at ~1MB.
     final img = await _picker.pickImage(source: source, imageQuality: 45, maxWidth: 900);
     if (img == null || !mounted) return;
     final replyTo = _replyingTo;
@@ -99,7 +99,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _shareLocation(String uid, String name) async {
-    // Only the GPS fix genuinely needs a spinner — it's the one part of
+    // Only the GPS fix genuinely needs a spinner: it's the one part of
     // this that can't be optimistic (there's nothing to send yet).
     setState(() => _gettingLocation = true);
     final replyTo = _replyingTo;
@@ -618,7 +618,7 @@ class _MessageBubble extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          message.locationLabel ?? 'Shared location — tap to open',
+                          message.locationLabel ?? 'Shared location, tap to open',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isMe ? Colors.white : const Color(0xFF0F172A)),

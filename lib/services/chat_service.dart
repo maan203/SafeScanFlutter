@@ -142,7 +142,7 @@ class ChatService {
   }
 
   /// Stores the photo as compressed base64 data directly inside the Firestore
-  /// message — no Cloud Storage bucket needed, so this stays on Firebase's
+  /// message, no Cloud Storage bucket needed, so this stays on Firebase's
   /// free Spark plan (Storage now requires the paid Blaze plan to even set
   /// up on new projects). Firestore caps a document at ~1MB, so the image
   /// must already be compressed small (see chat_screen.dart's picker settings)
@@ -197,7 +197,7 @@ class ChatService {
     await _chats.doc(chatId).update({'isClosed': true});
   }
 
-  /// Only closed (resolved) chats can be deleted — an open conversation
+  /// Only closed (resolved) chats can be deleted: an open conversation
   /// shouldn't disappear out from under the other participant.
   Future<void> deleteChat(String chatId) async {
     await _chats.doc(chatId).delete();

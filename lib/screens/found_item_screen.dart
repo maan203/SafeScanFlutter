@@ -13,7 +13,7 @@ import '../widgets/tappable.dart';
 
 enum _EmergencyState { idle, sending, sent }
 
-/// Shown to whoever scans an asset's QR code — the owner testing their own
+/// Shown to whoever scans an asset's QR code: the owner testing their own
 /// sticker, or a stranger who found it. Does not require the viewer to be
 /// logged in or to own the asset.
 class FoundItemScreen extends StatefulWidget {
@@ -44,7 +44,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
 
   /// Every genuine view of this screen by someone other than the owner
   /// counts as a scan: bumps the owner's Total Scans stat and sends them
-  /// a real "your QR was scanned" alert, automatically — no extra tap
+  /// a real "your QR was scanned" alert, automatically, with no extra tap
   /// needed, so it can't be silently skipped by going straight to chat.
   Future<void> _recordScanOnce(AssetModel asset) async {
     if (_scanRecordStarted) return;
@@ -135,7 +135,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Alert emergency contacts?', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
         content: Text(
-          'Only use this for a real emergency — an accident, injury, or a lost person. '
+          'Only use this for a real emergency: an accident, injury, or a lost person. '
           'This will text ${asset.userName}\'s emergency contacts directly with your location, '
           'skipping the owner entirely in case they can\'t respond.',
           style: GoogleFonts.inter(),
@@ -308,7 +308,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
                         Text('Is this an emergency?', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 15, color: const Color(0xFF991B1B))),
                         const SizedBox(height: 6),
                         Text(
-                          'Accident, injury, or a lost person — alert the owner\'s emergency contacts directly.',
+                          'Accident, injury, or a lost person: alert the owner\'s emergency contacts directly.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF991B1B)),
                         ),
@@ -345,7 +345,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Messaging app opened to alert $_emergencyContactsMessaged emergency contact${_emergencyContactsMessaged == 1 ? '' : 's'} — tap Send there to complete it.',
+                            'Messaging app opened to alert $_emergencyContactsMessaged emergency contact${_emergencyContactsMessaged == 1 ? '' : 's'}, tap Send there to complete it.',
                             style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF166534)),
                           ),
                         ),
@@ -368,7 +368,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
                       children: [
                         const Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB)),
                         const SizedBox(width: 12),
-                        Expanded(child: Text('This is your own asset — this is what a finder would see.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E40AF), fontWeight: FontWeight.w600))),
+                        Expanded(child: Text('This is your own asset. This is what a finder would see.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E40AF), fontWeight: FontWeight.w600))),
                       ],
                     ),
                   ),
@@ -457,7 +457,7 @@ class _FoundItemScreenState extends State<FoundItemScreen> {
                             _scanState == _ScanRecordState.pending
                                 ? 'Notifying the owner you found this...'
                                 : _scanState == _ScanRecordState.failed
-                                    ? 'Could not notify the owner — you can still call or chat below.'
+                                    ? 'Could not notify the owner. You can still call or chat below.'
                                     : 'Owner notified! They\'ve received an alert with your approximate location.',
                             style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF166534)),
                           ),
@@ -615,7 +615,7 @@ class _ChatStarterState extends State<_ChatStarter> {
       children: [
         Text('Want to talk to the owner directly?', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15, color: const Color(0xFF0F172A))),
         const SizedBox(height: 6),
-        Text('Chat inside the app to arrange the return — no phone number needed.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B))),
+        Text('Chat inside the app to arrange the return, no phone number needed.', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B))),
         if (auth.user == null) ...[
           const SizedBox(height: 14),
           TextField(

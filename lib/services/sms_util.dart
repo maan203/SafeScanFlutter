@@ -2,7 +2,7 @@ import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 
 /// Opens the device's native SMS composer pre-filled with a message and
-/// recipients. Requires one tap from the user to actually send — neither
+/// recipients. Requires one tap from the user to actually send: neither
 /// Android nor iOS allow apps to send SMS silently without that sensitive
 /// permission, so this is the free, no-special-permission way to reach
 /// someone who isn't a SafeScan user.
@@ -16,7 +16,7 @@ Future<bool> openSmsComposer(List<String> numbers, String message) async {
   return false;
 }
 
-/// Opens a WhatsApp chat with one contact, pre-filled with a message —
+/// Opens a WhatsApp chat with one contact, pre-filled with a message,
 /// same one-tap-to-send model as SMS. WhatsApp's deep link only supports a
 /// single recipient at a time (unlike SMS), so this is called once per
 /// contact rather than batched.

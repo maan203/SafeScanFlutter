@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/asset_model.dart';
 import 'sms_util.dart';
 
-/// Result of an emergency relay — tells the UI whether an SMS composer
+/// Result of an emergency relay: tells the UI whether an SMS composer
 /// was actually opened, so it doesn't falsely claim contacts were alerted.
 class EmergencyRelayResult {
   final int contactCount;
@@ -48,7 +48,7 @@ class AssetService {
     return AssetModel.fromFirestore(doc);
   }
 
-  /// Looked up by anyone who scans the QR code — no ownership check.
+  /// Looked up by anyone who scans the QR code, no ownership check.
   /// Used by the public "found this item" screen.
   Future<AssetModel?> getPublicAsset(String assetId) async {
     final doc = await _assets.doc(assetId).get();
@@ -81,8 +81,8 @@ class AssetService {
 
   /// Someone who scanned this QR believes there's a real emergency
   /// (accident, injury, lost child) and can't reach the owner directly.
-  /// Relays straight to the owner's own emergency contacts via SMS —
-  /// the same free, one-tap-to-send mechanism used by the SOS feature —
+  /// Relays straight to the owner's own emergency contacts via SMS,
+  /// the same free, one-tap-to-send mechanism used by the SOS feature,
   /// and separately logs an alert for the owner in case they're fine.
   Future<EmergencyRelayResult> triggerEmergencyRelay(AssetModel asset, String? location, String? mapsLink) async {
     final numbers = asset.emergencyContacts.map((c) => c.phone).where((p) => p.isNotEmpty).toList();

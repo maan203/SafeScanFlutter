@@ -7,7 +7,7 @@ import '../providers/auth_provider.dart';
 
 /// Shown for every cold app start while Firebase Auth restores (or fails to
 /// find) a saved session. Waits for that AND a minimum display time before
-/// deciding where to go — this is what prevents the onboarding screen from
+/// deciding where to go: this is what prevents the onboarding screen from
 /// flashing for already-logged-in users before landing on the dashboard.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

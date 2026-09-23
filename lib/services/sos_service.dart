@@ -3,7 +3,7 @@ import '../models/contact_model.dart';
 import 'contact_service.dart';
 import 'location_service.dart';
 
-/// Result of an SOS trigger — the logged event id plus everything the UI
+/// Result of an SOS trigger: the logged event id plus everything the UI
 /// needs to let the user pick WhatsApp or SMS per contact, each pre-filled
 /// with the same location-aware message so only a tap on Send is left.
 class SosResult {
@@ -51,8 +51,8 @@ class SosService {
     await _db.collection('users').doc(uid).collection('alerts').add({
       'title': 'SOS Triggered',
       'body': contacts.isEmpty
-          ? 'No emergency contacts to notify — add one in Emergency Contacts'
-          : 'Choose WhatsApp or SMS to alert ${contacts.length} contact${contacts.length == 1 ? '' : 's'} — tap Send there to complete it',
+          ? 'No emergency contacts to notify, add one in Emergency Contacts'
+          : 'Choose WhatsApp or SMS to alert ${contacts.length} contact${contacts.length == 1 ? '' : 's'}, tap Send there to complete it',
       'type': 'sos',
       'location': address,
       'isRead': false,

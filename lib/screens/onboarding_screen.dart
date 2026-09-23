@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingPage(
       icon: Icons.qr_code_2_rounded,
       title: 'No App Required to Scan',
-      subtitle: 'Anyone with a smartphone camera can reach you instantly — no install needed.',
+      subtitle: 'Anyone with a smartphone camera can reach you instantly, no install needed.',
     ),
     OnboardingPage(
       icon: Icons.location_on_outlined,

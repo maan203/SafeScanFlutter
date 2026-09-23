@@ -142,7 +142,7 @@ class _MyQrsScreenState extends State<MyQrsScreen> {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Ordering physical stickers — coming soon.', style: GoogleFonts.inter()),
+                              content: Text('Ordering physical stickers, coming soon.', style: GoogleFonts.inter()),
                               backgroundColor: const Color(0xFF1E293B),
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

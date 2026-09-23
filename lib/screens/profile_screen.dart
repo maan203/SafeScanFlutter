@@ -22,7 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature — coming soon.', style: GoogleFonts.inter()),
+        content: Text('$feature, coming soon.', style: GoogleFonts.inter()),
         backgroundColor: const Color(0xFF1E293B),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

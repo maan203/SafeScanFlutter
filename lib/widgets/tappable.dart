@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Drop-in replacement for `GestureDetector(onTap: ...)` that adds the
-/// Material ripple/press feedback a tappable element is expected to have —
+/// Material ripple/press feedback a tappable element is expected to have,
 /// most of this app's custom buttons and cards had none at all.
 class Tappable extends StatelessWidget {
   final VoidCallback? onTap;

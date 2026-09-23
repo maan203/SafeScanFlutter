@@ -219,7 +219,7 @@ class _AddAssetScreenState extends State<AddAssetScreen> {
                 title: 'Emergency SOS Contacts (Optional)',
                 children: [
                   Text(
-                    'If someone scans this QR in a genuine emergency — an accident, injury, or a lost child — they can alert these contacts directly with their location, even if you can\'t respond yourself.',
+                    'If someone scans this QR in a genuine emergency (an accident, injury, or a lost child), they can alert these contacts directly with their location, even if you can\'t respond yourself.',
                     style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), height: 1.4),
                   ),
                   const SizedBox(height: 12),

@@ -379,10 +379,10 @@ class _SosActionsView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
         children: [
-          Text('Alert sent — choose how to notify each contact', textAlign: TextAlign.center,
+          Text('Alert sent, choose how to notify each contact', textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
           const SizedBox(height: 6),
-          Text('Your message is pre-filled with your location — just tap Send.', textAlign: TextAlign.center,
+          Text('Your message is pre-filled with your location. Just tap Send.', textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
           const SizedBox(height: 20),
 
@@ -447,7 +447,7 @@ class _SosActionsView extends StatelessWidget {
               icon: resolving
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFB91C1C)))
                   : const Icon(Icons.check_circle_outline_rounded, size: 20),
-              label: Text(resolving ? 'Marking safe...' : 'I\'m Safe — Resolve'),
+              label: Text(resolving ? 'Marking safe...' : 'I\'m Safe, Resolve'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFB91C1C)),
             ),
           ),

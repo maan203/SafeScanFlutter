@@ -216,7 +216,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
     Navigator.pop(context);
 
     // If it's a SafeScan URL, extract the asset ID and open the public
-    // "found this item" view — works whether you own the asset or not.
+    // "found this item" view: works whether you own the asset or not.
     final uri = Uri.tryParse(value);
     if (uri != null && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'found') {
       final assetId = uri.pathSegments[1];

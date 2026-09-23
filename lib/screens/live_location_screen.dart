@@ -90,7 +90,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
         final mapsLink = 'https://maps.google.com/?q=${_currentPosition!.latitude},${_currentPosition!.longitude}';
         final opened = await openSmsComposer(
           selectedPhones,
-          'I\'m sharing my location with you: $mapsLink ($_address) — sent via SafeScan.',
+          'I\'m sharing my location with you: $mapsLink ($_address). Sent via SafeScan.',
         );
         if (mounted && !opened) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +291,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> with SingleTick
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'A location link was texted to ${_selectedContactIndices.length} contact${_selectedContactIndices.length == 1 ? '' : 's'}. It won\'t update automatically — tap Share again to send a fresh link.',
+                              'A location link was texted to ${_selectedContactIndices.length} contact${_selectedContactIndices.length == 1 ? '' : 's'}. It won\'t update automatically, tap Share again to send a fresh link.',
                               style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF16A34A), fontWeight: FontWeight.w500),
                             ),
                           ),

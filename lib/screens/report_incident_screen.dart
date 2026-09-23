@@ -247,7 +247,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         _loadingAsset
                             ? 'Loading asset...'
                             : _asset != null
-                                ? 'Reporting about: ${_asset!.name} — the owner will be notified'
+                                ? 'Reporting about: ${_asset!.name}, the owner will be notified'
                                 : 'This asset could not be found. Your report will still be saved without notifying an owner.',
                         style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF1E40AF)),
                       ),

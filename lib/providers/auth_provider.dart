@@ -91,7 +91,7 @@ class AuthProvider extends ChangeNotifier {
         'sign_in_canceled' || 'popup_closed' => null,
         'network_error' => 'No internet connection. Please try again.',
         'sign_in_failed' =>
-          'Google Sign-In failed. This usually means Google Sign-In isn\'t fully configured for this app build — please try again or use email sign-in.',
+          'Google Sign-In failed. This usually means Google Sign-In isn\'t fully configured for this app build. Please try again or use email sign-in.',
         _ => 'Google Sign-In failed: ${e.message ?? e.code}',
       };
       return false;

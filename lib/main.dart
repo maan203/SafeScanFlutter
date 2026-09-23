@@ -37,7 +37,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Inter is bundled locally (see pubspec.yaml) specifically so the app
   // never depends on a live fetch from fonts.gstatic.com to render its own
-  // text — that runtime fetch was observed hanging for minutes (and
+  // text: that runtime fetch was observed hanging for minutes (and
   // throwing unhandled exceptions) on flaky/restricted networks, making
   // the app look like it had crashed on first launch.
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -104,7 +104,7 @@ class _AppRouterState extends State<_AppRouter> {
 
         if (isPublicScan) return null;
 
-        // Splash screen manages its own navigation once auth resolves —
+        // Splash screen manages its own navigation once auth resolves;
         // this is what stops onboarding from flashing before the dashboard.
         if (onSplash) return null;
 

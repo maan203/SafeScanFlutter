@@ -236,7 +236,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     fontSize: 13,
                                   ),
                                   recognizer: TapGestureRecognizer()
-                                    ..onTap = () => _showInfo('Terms of Service — coming soon.'),
+                                    ..onTap = () => _showInfo('Terms of Service, coming soon.'),
                                 ),
                                 const TextSpan(text: ' and '),
                                 TextSpan(
@@ -247,7 +247,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     fontSize: 13,
                                   ),
                                   recognizer: TapGestureRecognizer()
-                                    ..onTap = () => _showInfo('Privacy Policy — coming soon.'),
+                                    ..onTap = () => _showInfo('Privacy Policy, coming soon.'),
                                 ),
                               ],
                             ),
